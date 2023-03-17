@@ -30,7 +30,7 @@ func (c *ResellerContext) CheckUserExists(username string) error {
 
 // CreateUser (reseller) create a user.
 //
-// The following fields must be filled out: Domain, Email, IpAddresses, Package, Username
+// The following fields must be populated: Domain, Email, IpAddresses, Package, Username
 func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser bool, customPackage *Package) error {
 	var response apiGenericResponse
 

@@ -2,7 +2,6 @@ package directadmin
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/goccy/go-json"
 )
 
 func (a *API) makeRequest(method string, endpoint string, accountCredentials credentials, body url.Values, object any, writeToFile ...*os.File) ([]byte, error) {
@@ -125,7 +126,7 @@ func (a *API) makeRequestN(method string, endpoint string, accountCredentials cr
 		}
 	}
 
-	// ignore unmarshal error, as DA's responses are consistent across endpoints
+	// ignore unmarshal error, as DA's responses are inconsistent across endpoints
 	if resp.StatusCode/100 == 2 {
 		// unmarshal to object if one is provided
 		if object != nil && len(responseBytes) > 0 {

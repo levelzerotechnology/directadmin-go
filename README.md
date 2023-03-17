@@ -14,8 +14,9 @@ To open a session as an admin/reseller/user, follow the following code block:
 package main
 
 import (
-	"encoding/json"
 	"time"
+	
+	"github.com/goccy/go-json"
 	"github.com/levelzerotechnology/directadmin-go"
 )
 
@@ -52,6 +53,13 @@ for _, db := range dbs {
 	fmt.Println(db.Name)
 }
 ```
+
+## Roadmap
+
+- [ ] Cleanup repo structure (e.g. redis actions being within `admin.go` could go into a dedicated `redis.go` file perhaps)
+- [ ] Explore DA's new API's update versions of old functions (e.g. user config/usage)
+- [ ] Implement testing for all functions
+- [ ] Reach stable v1.0
 
 ## License
 
