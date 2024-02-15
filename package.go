@@ -19,7 +19,7 @@ type Package struct {
 	CatchallEnabled         bool   `json:"catchallEnabled" yaml:"catchallEnabled"`
 	CgiEnabled              bool   `json:"cgiEnabled" yaml:"cgiEnabled"`
 	CronEnabled             bool   `json:"cronEnabled" yaml:"cronEnabled"`
-	DnsControlEnabled       bool   `json:"dnsControlEnabled" yaml:"dnsControlEnabled"`
+	DNSControlEnabled       bool   `json:"dnsControlEnabled" yaml:"dnsControlEnabled"`
 	DomainPointerQuota      int    `json:"domainPointerQuota" yaml:"domainPointerQuota"`
 	DomainQuota             int    `json:"domainQuota" yaml:"domainQuota"`
 	EmailAutoresponderQuota int    `json:"emailAutoresponderQuota" yaml:"emailAutoresponderQuota"`

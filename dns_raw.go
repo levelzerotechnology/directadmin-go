@@ -2,15 +2,15 @@ package directadmin
 
 import "github.com/spf13/cast"
 
-type rawDnsRecord struct {
+type rawDNSRecord struct {
 	Name  string `json:"name"`
 	Ttl   string `json:"ttl"`
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-func (d *DnsRecord) translate() rawDnsRecord {
-	return rawDnsRecord{
+func (d *DNSRecord) translate() rawDNSRecord {
+	return rawDNSRecord{
 		Name:  d.Name,
 		Ttl:   cast.ToString(d.Ttl),
 		Type:  d.Type,
@@ -18,8 +18,8 @@ func (d *DnsRecord) translate() rawDnsRecord {
 	}
 }
 
-func (d *rawDnsRecord) translate() DnsRecord {
-	return DnsRecord{
+func (d *rawDNSRecord) translate() DNSRecord {
+	return DNSRecord{
 		Name:  d.Name,
 		Ttl:   cast.ToInt(d.Ttl),
 		Type:  d.Type,

@@ -20,7 +20,7 @@ type rawUserConfig struct {
 	Creator                        string `json:"creator"`
 	Cron                           string `json:"cron"`
 	DateCreated                    string `json:"date_created"`
-	Dnscontrol                     string `json:"dnscontrol"`
+	DNScontrol                     string `json:"dnscontrol"`
 	Domain                         string `json:"domain"`
 	Email                          string `json:"email"`
 	Ftp                            string `json:"ftp"`
@@ -72,7 +72,7 @@ func (r *rawUserConfig) parse() (UserConfig, error) {
 		Creator:                        r.Creator,
 		CronEnabled:                    parseOnOff(r.Cron),
 		Domain:                         r.Domain,
-		DnsEnabled:                     parseOnOff(r.Dnscontrol),
+		DNSEnabled:                     parseOnOff(r.DNScontrol),
 		Email:                          r.Email,
 		GitEnabled:                     parseOnOff(r.Git),
 		IpAddresses:                    strings.Split(r.Ips, ", "),

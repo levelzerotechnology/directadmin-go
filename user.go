@@ -29,7 +29,7 @@ type UserConfig struct {
 	Creator                        string    `json:"creator" yaml:"creator"`
 	CronEnabled                    bool      `json:"cronEnabled" yaml:"cronEnabled"`
 	Domain                         string    `json:"domain" yaml:"domain"`
-	DnsEnabled                     bool      `json:"dnsEnabled" yaml:"dnsEnabled"`
+	DNSEnabled                     bool      `json:"dnsEnabled" yaml:"dnsEnabled"`
 	Email                          string    `json:"email" yaml:"email"`
 	GitEnabled                     bool      `json:"gitEnabled" yaml:"gitEnabled"`
 	IpAddresses                    []string  `json:"ipAddresses" yaml:"ipAddresses"`

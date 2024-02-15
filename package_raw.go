@@ -7,7 +7,7 @@ type rawPackage struct {
 	CatchallEnabled         string `json:"catchall" url:"catchall"`
 	CgiEnabled              string `json:"cgi" url:"cgi"`
 	CronEnabled             string `json:"cron" url:"cron"`
-	DnsControlEnabled       string `json:"dnscontrol" url:"dnscontrol"`
+	DNSControlEnabled       string `json:"dnscontrol" url:"dnscontrol"`
 	DomainPointerQuota      string `json:"domainptr" url:"domainptr"`
 	DomainQuota             string `json:"vdomains" url:"vdomains"`
 	EmailAutoresponderQuota string `json:"nemailr" url:"nemailr"`
@@ -51,7 +51,7 @@ func (p *Package) translate() (pack rawPackage) {
 		CgiEnabled:              reverseParseOnOff(p.CgiEnabled, false),
 		CpuQuota:                reverseParseNum(p.CpuQuota, true),
 		CronEnabled:             reverseParseOnOff(p.CronEnabled, false),
-		DnsControlEnabled:       reverseParseOnOff(p.DnsControlEnabled, false),
+		DNSControlEnabled:       reverseParseOnOff(p.DNSControlEnabled, false),
 		DomainPointerQuota:      reverseParseNum(p.DomainPointerQuota, false),
 		DomainQuota:             reverseParseNum(p.DomainQuota, false),
 		EmailAutoresponderQuota: reverseParseNum(p.EmailAutoresponderQuota, false),
@@ -96,7 +96,7 @@ func (p *rawPackage) translate() Package {
 		CatchallEnabled:         parseOnOff(p.CatchallEnabled),
 		CgiEnabled:              parseOnOff(p.CgiEnabled),
 		CronEnabled:             parseOnOff(p.CronEnabled),
-		DnsControlEnabled:       parseOnOff(p.DnsControlEnabled),
+		DNSControlEnabled:       parseOnOff(p.DNSControlEnabled),
 		DomainPointerQuota:      parseNum(p.DomainPointerQuota),
 		DomainQuota:             parseNum(p.DomainQuota),
 		EmailAutoresponderQuota: parseNum(p.EmailAutoresponderQuota),

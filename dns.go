@@ -10,17 +10,17 @@ import (
 	"github.com/spf13/cast"
 )
 
-type DnsRecord struct {
+type DNSRecord struct {
 	Name  string `json:"name"`
 	Ttl   int    `json:"ttl"`
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-// CheckDnsRecordExists (user) checks if the given dns record exists on the server
+// CheckDNSRecordExists (user) checks if the given dns record exists on the server
 //
 // checkField can be either "name" or "value"
-func (c *UserContext) CheckDnsRecordExists(checkField string, domain string, dnsRecord DnsRecord) error {
+func (c *UserContext) CheckDNSRecordExists(checkField string, domain string, dnsRecord DNSRecord) error {
 	body := url.Values{
 		"check":  {checkField},
 		"domain": {domain},
@@ -37,18 +37,19 @@ func (c *UserContext) CheckDnsRecordExists(checkField string, domain string, dns
 	return c.checkObjectExists(body)
 }
 
-// CreateDnsRecord (user) creates the provided dns record for the given domain
-func (c *UserContext) CreateDnsRecord(domain string, dnsRecord DnsRecord) error {
+// CreateDNSRecord (user) creates the provided dns record for the given domain
+func (c *UserContext) CreateDNSRecord(domain string, dnsRecord DNSRecord) error {
 	var response apiGenericResponse
 
-	rawDnsRecordData := dnsRecord.translate()
+	rawDNSRecordData := dnsRecord.translate()
 
-	body := url.Values{}
-	body.Set("domain", domain)
-	body.Set("name", rawDnsRecordData.Name)
-	body.Set("ttl", rawDnsRecordData.Ttl)
-	body.Set("type", rawDnsRecordData.Type)
-	body.Set("value", rawDnsRecordData.Value)
+	body := url.Values{
+		"domain": {domain},
+		"name":   {rawDNSRecordData.Name},
+		"ttl":    {cast.ToString(rawDNSRecordData.Ttl)},
+		"type":   {rawDNSRecordData.Type},
+		"value":  {rawDNSRecordData.Value},
+	}
 
 	if _, err := c.api.makeRequest(http.MethodPost, "API_DNS_CONTROL?action=add&action_pointers=yes", c.credentials, body, &response); err != nil {
 		return err
@@ -61,8 +62,8 @@ func (c *UserContext) CreateDnsRecord(domain string, dnsRecord DnsRecord) error 
 	return nil
 }
 
-// DeleteDnsRecords (user) deletes all the specified dnss for the session user
-func (c *UserContext) DeleteDnsRecords(dnsRecords ...DnsRecord) error {
+// DeleteDNSRecords (user) deletes all the specified dnss for the session user
+func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
 	var response apiGenericResponse
 
 	body := url.Values{}
@@ -89,18 +90,18 @@ func (c *UserContext) DeleteDnsRecords(dnsRecords ...DnsRecord) error {
 	return nil
 }
 
-// GetDnsRecords (user) returns the given domain's dns records
-func (c *UserContext) GetDnsRecords(domain string) ([]DnsRecord, error) {
-	var dnsRecords []DnsRecord
-	rawDnsRecords := struct {
-		DnsRecords []rawDnsRecord `json:"records"`
+// GetDNSRecords (user) returns the given domain's dns records
+func (c *UserContext) GetDNSRecords(domain string) ([]DNSRecord, error) {
+	var dnsRecords []DNSRecord
+	rawDNSRecords := struct {
+		DNSRecords []rawDNSRecord `json:"records"`
 	}{}
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_DNS_CONTROL?domain="+domain, c.credentials, nil, &rawDnsRecords); err != nil {
+	if _, err := c.api.makeRequest(http.MethodGet, "API_DNS_CONTROL?domain="+domain, c.credentials, nil, &rawDNSRecords); err != nil {
 		return nil, err
 	}
 
-	for _, dnsRecord := range rawDnsRecords.DnsRecords {
+	for _, dnsRecord := range rawDNSRecords.DNSRecords {
 		dnsRecords = append(dnsRecords, dnsRecord.translate())
 	}
 
@@ -111,26 +112,27 @@ func (c *UserContext) GetDnsRecords(domain string) ([]DnsRecord, error) {
 	return dnsRecords, nil
 }
 
-// UpdateDnsRecord (user) updates the given dns record for the given domain
-func (c *UserContext) UpdateDnsRecord(domain string, originalDnsRecord DnsRecord, updatedDnsRecord DnsRecord) error {
+// UpdateDNSRecord (user) updates the given dns record for the given domain
+func (c *UserContext) UpdateDNSRecord(domain string, originalDNSRecord DNSRecord, updatedDNSRecord DNSRecord) error {
 	var response apiGenericResponse
 
-	rawDnsRecordData := updatedDnsRecord.translate()
+	rawDNSRecordData := updatedDNSRecord.translate()
 
-	body := url.Values{}
-	body.Set("domain", domain)
-	body.Set("name", rawDnsRecordData.Name)
-	body.Set("ttl", rawDnsRecordData.Ttl)
-	body.Set("type", rawDnsRecordData.Type)
-	body.Set("value", rawDnsRecordData.Value)
-	body.Set(strings.ToLower(originalDnsRecord.Type)+"recs0", fmt.Sprintf("name=%v&value=%v", originalDnsRecord.Name, originalDnsRecord.Value))
+	body := url.Values{
+		"domain": {domain},
+		"name":   {rawDNSRecordData.Name},
+		"ttl":    {cast.ToString(rawDNSRecordData.Ttl)},
+		"type":   {rawDNSRecordData.Type},
+		"value":  {rawDNSRecordData.Value},
+		strings.ToLower(originalDNSRecord.Type) + "recs0": {fmt.Sprintf("name=%v&value=%v", originalDNSRecord.Name, originalDNSRecord.Value)},
+	}
 
 	if _, err := c.api.makeRequest(http.MethodPost, "API_DNS_CONTROL?action=edit&action_pointers=yes", c.credentials, body, &response); err != nil {
 		return err
 	}
 
-	if response.Success != "Record Added" {
-		return fmt.Errorf("failed to create dns record: %v", response.Result)
+	if response.Success != "Record Edited" {
+		return fmt.Errorf("failed to update dns record: %v", response.Result)
 	}
 
 	return nil
