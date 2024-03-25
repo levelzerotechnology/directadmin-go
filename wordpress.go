@@ -74,7 +74,13 @@ func (c *UserContext) ChangeWordPressUserPassword(locationId string, userId int,
 
 func (c *UserContext) CreateWordPressInstall(install WordPressInstall, createDatabase bool) error {
 	if createDatabase {
-		if err := c.CreateDatabase(install.DbName, install.DbUser, install.DbPass); err != nil {
+		if err := c.CreateDatabaseWithUser(&DatabaseWithUser{
+			Database: Database{
+				Name: install.DbName,
+			},
+			Password: install.DbPass,
+			User:     install.DbUser,
+		}); err != nil {
 			return fmt.Errorf("failed to create database: %v", err)
 		}
 	}
@@ -101,7 +107,7 @@ func (c *UserContext) CreateWordPressInstall(install WordPressInstall, createDat
 
 	if _, err := c.api.makeRequestN(http.MethodPost, "wordpress/install", c.credentials, install, nil); err != nil {
 		if createDatabase {
-			if dbErr := c.DeleteDatabases(install.DbName); dbErr != nil {
+			if dbErr := c.DeleteDatabase(install.DbName); dbErr != nil {
 				err = fmt.Errorf("%v: %v", dbErr, err)
 			}
 		}

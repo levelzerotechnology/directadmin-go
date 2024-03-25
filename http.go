@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -80,16 +81,39 @@ func (a *API) makeRequest(method string, endpoint string, accountCredentials cre
 }
 
 // makeRequestN supports DA's new API
-func (a *API) makeRequestN(method string, endpoint string, accountCredentials credentials, body any, object any) ([]byte, error) {
+func (a *API) makeRequestN(method string, endpoint string, accountCredentials credentials, body any, object any, uploadFile ...bool) ([]byte, error) {
 	defer a.queryTime(endpoint, time.Now())
 
 	var err error
 	var requestBytes, responseBytes []byte
 
+	contentType := "application/json"
+
 	if body != nil {
-		requestBytes, err = json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("error marshalling body: %w", err)
+		if len(uploadFile) != 1 {
+			requestBytes, err = json.Marshal(body)
+			if err != nil {
+				return nil, fmt.Errorf("error marshalling body: %w", err)
+			}
+		} else {
+			var byteBuffer bytes.Buffer
+			multipartWriter := multipart.NewWriter(&byteBuffer)
+
+			formFile, err := multipartWriter.CreateFormFile("sqlfile", "filename")
+			if err != nil {
+				return nil, err
+			}
+
+			if _, err = formFile.Write(body.([]byte)); err != nil {
+				return nil, err
+			}
+
+			if err = multipartWriter.Close(); err != nil {
+				return nil, err
+			}
+
+			requestBytes = byteBuffer.Bytes()
+			contentType = multipartWriter.FormDataContentType()
 		}
 	}
 
@@ -99,7 +123,7 @@ func (a *API) makeRequestN(method string, endpoint string, accountCredentials cr
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 	req.SetBasicAuth(accountCredentials.username, accountCredentials.passkey)
 
 	resp, err := a.httpClient.Do(req)

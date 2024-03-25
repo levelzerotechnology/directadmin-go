@@ -1,14 +1,11 @@
 package directadmin
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
+	"strconv"
 	"strings"
-
-	"github.com/spf13/cast"
 )
 
 const (
@@ -16,53 +13,83 @@ const (
 	DatabaseFormatSql = DatabaseFormat("sql")
 )
 
-type DatabaseFormat string
+type (
+	DatabaseFormat string
 
-type Database struct {
-	Name  string `json:"name" yaml:"name"`
-	Size  int    `json:"size" yaml:"size"`
-	Users int    `json:"users" yaml:"users"`
-}
-
-func (c *UserContext) CreateDatabase(name string, dbUser string, dbPassword string) error {
-	var response apiGenericResponse
-
-	body := url.Values{}
-	body.Set("name", name)
-	body.Set("user", dbUser)
-	body.Set("passwd", dbPassword)
-	body.Set("passwd2", dbPassword)
-
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DATABASES?action=create", c.credentials, body, &response); err != nil {
-		return err
+	Database struct {
+		Name             string `json:"database"`
+		DefaultCharset   string `json:"defaultCharset"`
+		DefaultCollation string `json:"defaultCollation"`
+		DefinerIssues    int    `json:"definerIssues"`
+		EventCount       int    `json:"eventCount"`
+		RoutineCount     int    `json:"routineCount"`
+		SizeBytes        int    `json:"sizeBytes"`
+		TableCount       int    `json:"tableCount"`
+		TriggerCount     int    `json:"triggerCount"`
+		UserCount        int    `json:"userCount"`
+		ViewCount        int    `json:"viewCount"`
 	}
 
-	if response.Success != "Database Created" {
-		return fmt.Errorf("failed to create database: %v", response.Result)
+	DatabaseProcess struct {
+		Command  string `json:"command"`
+		Database string `json:"database"`
+		Host     string `json:"host"`
+		Id       int    `json:"id"`
+		Info     string `json:"info"`
+		State    string `json:"state"`
+		Time     int    `json:"time"`
+		User     string `json:"user"`
+	}
+
+	DatabaseUser struct {
+		HostPatterns []string `json:"hostPatterns"`
+		Password     string   `json:"password"`
+		User         string   `json:"dbuser"`
+	}
+
+	DatabaseWithUser struct {
+		Database
+		Password string `json:"password"`
+		User     string `json:"dbuser"`
+	}
+)
+
+func (c *UserContext) CreateDatabase(database *Database) error {
+	database.Name = c.addUsernamePrefix(database.Name)
+
+	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/create-db", c.credentials, database, nil); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (c *UserContext) DeleteDatabases(names ...string) error {
-	var response apiGenericResponse
+func (c *UserContext) CreateDatabaseWithUser(database *DatabaseWithUser) error {
+	database.Name = c.addUsernamePrefix(database.Name)
+	database.User = c.addUsernamePrefix(database.User)
 
-	body := url.Values{}
-
-	for index, name := range names {
-		if !strings.Contains(name, c.GetMyUsername()+"_") {
-			name = c.GetMyUsername() + "_" + name
-		}
-
-		body.Set("select"+cast.ToString(index), name)
-	}
-
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DATABASES?action=delete", c.credentials, body, &response); err != nil {
+	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/create-db-with-user", c.credentials, database, nil); err != nil {
 		return err
 	}
 
-	if response.Success != "Databases Deleted" {
-		return fmt.Errorf("failed to delete database: %v", response.Result)
+	return nil
+}
+
+func (c *UserContext) CreateDatabaseUser(databaseUser *DatabaseUser) error {
+	databaseUser.User = c.addUsernamePrefix(databaseUser.User)
+
+	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/create-user", c.credentials, databaseUser, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *UserContext) DeleteDatabase(databaseName string) error {
+	databaseName = c.addUsernamePrefix(databaseName)
+
+	if _, err := c.api.makeRequestN(http.MethodDelete, "db-manage/databases/"+databaseName, c.credentials, nil, nil); err != nil {
+		return err
 	}
 
 	return nil
@@ -99,43 +126,88 @@ func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat, fileP
 	return nil
 }
 
-// GetDatabases (user) returns an array of the session user's databases
-func (c *UserContext) GetDatabases() ([]Database, error) {
-	var databases []Database
-	rawDatabases := struct {
-		Databases map[string]struct {
-			Name  string `json:"database"`
-			Size  string `json:"size"`
-			Users string `json:"nusers"`
-		}
-	}{}
+// ExportDatabase (user) returns an export of the given database
+func (c *UserContext) ExportDatabase(databaseName string, gzip bool) ([]byte, error) {
+	databaseName = c.addUsernamePrefix(databaseName)
 
-	if _, err := c.api.makeRequest(http.MethodGet, "DB", c.credentials, nil, &rawDatabases); err != nil {
+	export, err := c.api.makeRequestN(http.MethodGet, "db-manage/databases/"+databaseName+"/export?gzip="+strconv.FormatBool(gzip), c.credentials, nil, nil)
+	if err != nil {
 		return nil, err
 	}
 
-	for id, database := range rawDatabases.Databases {
-		if id != "info" {
-			databases = append(databases, Database{
-				Name:  strings.Replace(database.Name, c.credentials.username+"_", "", 1),
-				Size:  cast.ToInt(database.Size),
-				Users: cast.ToInt(database.Users),
-			})
-		}
+	return export, nil
+}
+
+// GetDatabase (user) returns the given database
+func (c *UserContext) GetDatabase(databaseName string) (*Database, error) {
+	databaseName = c.addUsernamePrefix(databaseName)
+
+	var database Database
+
+	if _, err := c.api.makeRequestN(http.MethodGet, "db-show/databases/"+databaseName, c.credentials, nil, &database); err != nil {
+		return nil, err
 	}
 
-	if len(databases) == 0 {
-		return nil, errors.New("no databases were found")
+	return &database, nil
+}
+
+// GetDatabases (user) returns an array of the session user's databases
+func (c *UserContext) GetDatabases() ([]*Database, error) {
+	var databases []*Database
+
+	if _, err := c.api.makeRequestN(http.MethodGet, "db-show/databases", c.credentials, nil, &databases); err != nil {
+		return nil, err
 	}
 
 	return databases, nil
 }
 
-// ListDatabases (user) returns an array of all databases for the session user
-func (c *UserContext) ListDatabases() (databaseList []string, err error) {
-	if _, err = c.api.makeRequest(http.MethodGet, "API_DATABASES", c.credentials, nil, &databaseList); err != nil {
+// GetDatabaseProcesses (admin) returns an array of current database processes
+func (c *UserContext) GetDatabaseProcesses() ([]*DatabaseProcess, error) {
+	var databaseProcesses []*DatabaseProcess
+
+	if _, err := c.api.makeRequestN(http.MethodGet, "db-monitor/processes", c.credentials, nil, &databaseProcesses); err != nil {
 		return nil, err
 	}
 
-	return databaseList, nil
+	return databaseProcesses, nil
+}
+
+// ImportDatabase (user) imports the given database export into the given database
+func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase bool, sql []byte) error {
+	databaseName = c.addUsernamePrefix(databaseName)
+
+	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/databases/"+databaseName+"/import?clean="+strconv.FormatBool(emptyExistingDatabase), c.credentials, sql, nil, true); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateDatabaseUserHosts (user) updates the given database user's hosts
+func (c *UserContext) UpdateDatabaseUserHosts(username string, hosts []string) error {
+	username = c.addUsernamePrefix(username)
+
+	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/users/"+username+"/change-hosts", c.credentials, hosts, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateDatabaseUserPassword (user) updates the given database user's password
+func (c *UserContext) UpdateDatabaseUserPassword(username string, password string) error {
+	username = c.addUsernamePrefix(username)
+
+	newPassword := struct {
+		NewPassword string `json:"newPassword"`
+	}{
+		password,
+	}
+
+	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/users/"+username+"/change-password", c.credentials, newPassword, nil); err != nil {
+		return err
+	}
+
+	return nil
 }

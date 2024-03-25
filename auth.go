@@ -32,13 +32,13 @@ type (
 )
 
 func (c *UserContext) CreateLoginURL(loginKeyURL *LoginKeyURL) (*LoginKeyURL, error) {
-	var response LoginKeyURL
+	var response *LoginKeyURL
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "login-keys/urls", c.credentials, loginKeyURL, &response); err != nil {
+	if _, err := c.api.makeRequestN(http.MethodPost, "login-keys/urls", c.credentials, loginKeyURL, response); err != nil {
 		return nil, fmt.Errorf("failed to create login URL: %v", err)
 	}
 
-	return &response, nil
+	return response, nil
 }
 
 func (c *UserContext) GetLoginURLs() ([]*LoginKeyURL, error) {
@@ -65,6 +65,8 @@ func (c *AdminContext) GetLoginHistory() ([]*LoginHistory, error) {
 	return loginHistory, nil
 }
 
+// GetMyUsername returns the current user's username. This is particularly useful when logging in as another user, as it
+// trims the admin/reseller username automatically
 func (c *UserContext) GetMyUsername() string {
 	// if user is logged in via reseller, we need to remove the reseller username from the context's username
 	if strings.Contains(c.credentials.username, "|") {
