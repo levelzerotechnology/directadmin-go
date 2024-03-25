@@ -8,15 +8,47 @@ import (
 	"time"
 )
 
-type credentials struct {
-	username string
-	passkey  string
+type (
+	credentials struct {
+		username string
+		passkey  string
+	}
+
+	LoginHistory struct {
+		Attempts  int       `json:"attempts"`
+		Host      string    `json:"host"`
+		Timestamp time.Time `json:"timestamp"`
+	}
+
+	LoginKeyURL struct {
+		AllowNetworks []string  `json:"allowNetworks"`
+		Created       time.Time `json:"created"`
+		CreatedBy     string    `json:"createdBy"`
+		Expires       time.Time `json:"expires"`
+		Id            string    `json:"id"`
+		RedirectURL   string    `json:"redirectURL"`
+		URL           string    `json:"url"`
+	}
+)
+
+func (c *UserContext) CreateLoginURL(loginKeyURL *LoginKeyURL) (*LoginKeyURL, error) {
+	var response LoginKeyURL
+
+	if _, err := c.api.makeRequestN(http.MethodPost, "login-keys/urls", c.credentials, loginKeyURL, &response); err != nil {
+		return nil, fmt.Errorf("failed to create login URL: %v", err)
+	}
+
+	return &response, nil
 }
 
-type LoginHistory struct {
-	Attempts  int       `json:"attempts"`
-	Host      string    `json:"host"`
-	Timestamp time.Time `json:"timestamp"`
+func (c *UserContext) GetLoginURLs() ([]*LoginKeyURL, error) {
+	var loginKeyURLs []*LoginKeyURL
+
+	if _, err := c.api.makeRequestN(http.MethodGet, "login-keys/urls", c.credentials, nil, &loginKeyURLs); err != nil {
+		return nil, fmt.Errorf("failed to get login URLs: %v", err)
+	}
+
+	return loginKeyURLs, nil
 }
 
 func (c *AdminContext) GetLoginHistory() ([]*LoginHistory, error) {
