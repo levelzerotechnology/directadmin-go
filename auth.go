@@ -31,21 +31,23 @@ type (
 	}
 )
 
-func (c *UserContext) CreateLoginURL(loginKeyURL *LoginKeyURL) (*LoginKeyURL, error) {
-	var response *LoginKeyURL
-
-	if _, err := c.api.makeRequestN(http.MethodPost, "login-keys/urls", c.credentials, loginKeyURL, response); err != nil {
-		return nil, fmt.Errorf("failed to create login URL: %v", err)
+func (c *UserContext) CreateLoginURL(loginKeyURL *LoginKeyURL) error {
+	if loginKeyURL == nil {
+		return errors.New("failed to create login key URL: loginKeyURL is nil")
 	}
 
-	return response, nil
+	if _, err := c.api.makeRequestN(http.MethodPost, "login-keys/urls", c.credentials, loginKeyURL, loginKeyURL); err != nil {
+		return fmt.Errorf("failed to create login URL: %w", err)
+	}
+
+	return nil
 }
 
 func (c *UserContext) GetLoginURLs() ([]*LoginKeyURL, error) {
 	var loginKeyURLs []*LoginKeyURL
 
 	if _, err := c.api.makeRequestN(http.MethodGet, "login-keys/urls", c.credentials, nil, &loginKeyURLs); err != nil {
-		return nil, fmt.Errorf("failed to get login URLs: %v", err)
+		return nil, fmt.Errorf("failed to get login URLs: %w", err)
 	}
 
 	return loginKeyURLs, nil
@@ -55,7 +57,7 @@ func (c *AdminContext) GetLoginHistory() ([]*LoginHistory, error) {
 	var loginHistory []*LoginHistory
 
 	if _, err := c.api.makeRequestN(http.MethodGet, "login-history", c.credentials, nil, &loginHistory); err != nil {
-		return nil, fmt.Errorf("failed to get login history: %v", err)
+		return nil, fmt.Errorf("failed to get login history: %w", err)
 	}
 
 	if len(loginHistory) == 0 {
