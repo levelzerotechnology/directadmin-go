@@ -56,7 +56,7 @@ func (c *UserContext) CreateDomain(domain Domain) error {
 	body.Set("php", rawDomainData.PhpEnabled)
 	body.Set("ssl", rawDomainData.SslEnabled)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DOMAIN?action=create", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DOMAIN?action=create", body, &response); err != nil {
 		return err
 	}
 
@@ -106,7 +106,7 @@ func (c *UserContext) DeleteDomains(deleteData bool, domains ...string) error {
 		body.Set("select"+cast.ToString(index), domain)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DOMAIN?action=select", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DOMAIN?action=select", body, &response); err != nil {
 		return err
 	}
 
@@ -137,7 +137,7 @@ func (c *UserContext) GetDomain(domainName string) (Domain, error) {
 
 	var rawDomains map[string]rawDomain
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes&domain="+domainName, c.credentials, nil, &rawDomains); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes&domain="+domainName, nil, &rawDomains); err != nil {
 		return Domain{}, err
 	}
 
@@ -154,7 +154,7 @@ func (c *UserContext) GetDomain(domainName string) (Domain, error) {
 		rawDomainData.Subdomains = []string{}
 	}
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes&action=view&domain="+domainName, c.credentials, nil, &rawDomainData.ExtraData); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes&action=view&domain="+domainName, nil, &rawDomainData.ExtraData); err != nil {
 		return Domain{}, err
 	}
 
@@ -166,7 +166,7 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 	var domains []Domain
 	var rawDomains map[string]rawDomain
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes", c.credentials, nil, &rawDomains); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes", nil, &rawDomains); err != nil {
 		return nil, fmt.Errorf("failed to get domains: %v", err)
 	}
 
@@ -201,7 +201,7 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 		go func(rawDomainData rawDomain) {
 			defer wg.Done()
 
-			if _, err := c.api.makeRequest(http.MethodGet, "API_ADDITIONAL_DOMAINS?action=view&bytes=yes&domain="+rawDomainData.Domain, c.credentials, nil, &rawDomainData.ExtraData); err != nil {
+			if _, err := c.makeRequestOld(http.MethodGet, "API_ADDITIONAL_DOMAINS?action=view&bytes=yes&domain="+rawDomainData.Domain, nil, &rawDomainData.ExtraData); err != nil {
 				mu.Lock()
 				errs = append(errs, err)
 				mu.Unlock()
@@ -260,7 +260,7 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 
 // ListDomains (user) returns an array of all domains for the session user
 func (c *UserContext) ListDomains() (domainList []string, err error) {
-	if _, err = c.api.makeRequest(http.MethodGet, "API_SHOW_DOMAINS?bytes=yes", c.credentials, nil, &domainList); err != nil {
+	if _, err = c.makeRequestOld(http.MethodGet, "API_SHOW_DOMAINS?bytes=yes", nil, &domainList); err != nil {
 		return nil, err
 	}
 
@@ -275,7 +275,7 @@ func (c *UserContext) SetDefaultDomain(domain string) error {
 	body.Set("select0", domain)
 	body.Set("default", "yes")
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DOMAIN?action=select", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DOMAIN?action=select", body, &response); err != nil {
 		return err
 	}
 
@@ -300,7 +300,7 @@ func (c *UserContext) UpdateDomain(domain Domain) error {
 	body.Set("php", rawDomainData.PhpEnabled)
 	body.Set("ssl", rawDomainData.SslEnabled)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DOMAIN?action=modify", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DOMAIN?action=modify", body, &response); err != nil {
 		return err
 	}
 

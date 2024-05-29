@@ -64,7 +64,7 @@ func (c *ResellerContext) CreatePackage(pack Package) error {
 		return err
 	}
 
-	if _, err = c.api.makeRequest(http.MethodPost, "MANAGE_USER_PACKAGES?add=yes", c.credentials, body, &response); err != nil {
+	if _, err = c.makeRequestOld(http.MethodPost, "MANAGE_USER_PACKAGES?add=yes", body, &response); err != nil {
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (c *ResellerContext) DeletePackages(packs ...string) error {
 		body.Set("select"+cast.ToString(index), pack)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "MANAGE_USER_PACKAGES", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "MANAGE_USER_PACKAGES", body, &response); err != nil {
 		return err
 	}
 
@@ -102,7 +102,7 @@ func (c *ResellerContext) DeletePackages(packs ...string) error {
 func (c *ResellerContext) GetPackage(packageName string) (Package, error) {
 	var rawPack rawPackage
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_PACKAGES_USER?package="+packageName, c.credentials, nil, &rawPack); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER?package="+packageName, nil, &rawPack); err != nil {
 		return Package{}, fmt.Errorf("failed to get package info for %v: %v", packageName, err)
 	}
 
@@ -116,7 +116,7 @@ func (c *ResellerContext) GetPackages() ([]Package, error) {
 	var packageList []string
 	var packages []Package
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_PACKAGES_USER", c.credentials, nil, &packageList); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER", nil, &packageList); err != nil {
 		return nil, err
 	}
 
@@ -175,7 +175,7 @@ func (c *ResellerContext) RenamePackage(oldPackName string, newPackName string) 
 	body.Set("old_package", oldPackName)
 	body.Set("new_package", newPackName)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "MANAGE_USER_PACKAGES?action=rename", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "MANAGE_USER_PACKAGES?action=rename", body, &response); err != nil {
 		return err
 	}
 

@@ -24,7 +24,7 @@ func (c *UserContext) CreateSubdomain(subdomain Subdomain) error {
 	body.Set("domain", subdomain.Domain)
 	body.Set("subdomain", subdomain.Subdomain)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_SUBDOMAINS?action=create", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_SUBDOMAINS?action=create", body, &response); err != nil {
 		return fmt.Errorf("failed to create subdomain: %v", err)
 	}
 
@@ -52,7 +52,7 @@ func (c *UserContext) DeleteSubdomains(deleteData bool, domain string, subdomain
 		body.Set("select"+cast.ToString(index), subdomain)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_SUBDOMAINS?action=delete", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_SUBDOMAINS?action=delete", body, &response); err != nil {
 		return err
 	}
 
@@ -65,33 +65,12 @@ func (c *UserContext) DeleteSubdomains(deleteData bool, domain string, subdomain
 
 // ListSubdomains (user) returns an array of all subdomains for the given domain
 func (c *UserContext) ListSubdomains(domain string) (subdomainList []string, err error) {
-	if _, err = c.api.makeRequest(http.MethodGet, "API_SUBDOMAINS?bytes=yes&domain="+domain, c.credentials, nil, &subdomainList); err != nil {
+	if _, err = c.makeRequestOld(http.MethodGet, "API_SUBDOMAINS?bytes=yes&domain="+domain, nil, &subdomainList); err != nil {
 		return nil, err
 	}
 
 	return subdomainList, nil
 }
-
-// TODO: get php version list from server in most efficient way
-// could call the user's primary domain and get the info from there, then cache it in the context
-//func (u *UserContext) UpdateSubdomainPhpVersion(subdomain Subdomain) error {
-//	var response apiGenericResponse
-//
-//	body := url.Values{}
-//	body.Set("domain", subdomain.Domain)
-//	body.Set("subdomain", subdomain.Subdomain)
-//	body.Set("public_html", subdomain.PublicHtml)
-//
-//	if _, err := c.api.makeRequest(http.MethodPost, "SUBDOMAIN?action=document_root_override", c.credentials, body, &response); err != nil {
-//		return fmt.Errorf("failed to update subdomain root: %v", err)
-//	}
-//
-//	if response.Success != "Success" {
-//		return fmt.Errorf("failed to update subdomain root: %v", response.Result)
-//	}
-//
-//	return nil
-//}
 
 func (c *UserContext) UpdateSubdomainRoot(subdomain Subdomain) error {
 	var response apiGenericResponse
@@ -101,7 +80,7 @@ func (c *UserContext) UpdateSubdomainRoot(subdomain Subdomain) error {
 	body.Set("subdomain", subdomain.Subdomain)
 	body.Set("public_html", subdomain.PublicHtml)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "SUBDOMAIN?action=document_root_override", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "SUBDOMAIN?action=document_root_override", body, &response); err != nil {
 		return fmt.Errorf("failed to update subdomain root: %v", err)
 	}
 

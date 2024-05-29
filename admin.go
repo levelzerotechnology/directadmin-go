@@ -17,7 +17,7 @@ type convertAccount struct {
 }
 
 func (c *AdminContext) ConvertResellerToUser(username string, reseller string) error {
-	if _, err := c.api.makeRequestN(http.MethodPost, "convert-reseller-to-user", c.credentials, convertAccount{Account: username, Creator: reseller}, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "convert-reseller-to-user", convertAccount{Account: username, Creator: reseller}, nil); err != nil {
 		return err
 	}
 
@@ -25,7 +25,7 @@ func (c *AdminContext) ConvertResellerToUser(username string, reseller string) e
 }
 
 func (c *AdminContext) ConvertUserToReseller(username string) error {
-	if _, err := c.api.makeRequestN(http.MethodPost, "convert-user-to-reseller", c.credentials, convertAccount{Account: username}, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "convert-user-to-reseller", convertAccount{Account: username}, nil); err != nil {
 		return err
 	}
 
@@ -35,7 +35,7 @@ func (c *AdminContext) ConvertUserToReseller(username string) error {
 func (c *AdminContext) DisableRedis() error {
 	var response apiGenericResponseN
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "redis/disable", c.credentials, nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "redis/disable", nil, &response); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (c *AdminContext) DisableRedis() error {
 func (c *AdminContext) EnableRedis() error {
 	var response apiGenericResponseN
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "redis/enable", c.credentials, nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "redis/enable", nil, &response); err != nil {
 		return err
 	}
 
@@ -56,7 +56,7 @@ func (c *AdminContext) EnableRedis() error {
 func (c *AdminContext) GetAllUsers() ([]string, error) {
 	var users []string
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_SHOW_ALL_USERS", c.credentials, nil, &users); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_ALL_USERS", nil, &users); err != nil {
 		return nil, err
 	}
 
@@ -67,7 +67,7 @@ func (c *AdminContext) GetAllUsers() ([]string, error) {
 func (c *AdminContext) GetResellers() ([]string, error) {
 	var users []string
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_SHOW_RESELLERS", c.credentials, nil, &users); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_RESELLERS", nil, &users); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +78,7 @@ func (c *AdminContext) GetResellers() ([]string, error) {
 func (c *AdminContext) GetResellersWithUsage() ([]string, error) {
 	var users []string
 
-	if _, err := c.api.makeRequest(http.MethodGet, "RESELLER_SHOW", c.credentials, nil, &users); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "RESELLER_SHOW", nil, &users); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +86,7 @@ func (c *AdminContext) GetResellersWithUsage() ([]string, error) {
 }
 
 func (c *AdminContext) MoveUserToReseller(username string, reseller string) error {
-	if _, err := c.api.makeRequestN(http.MethodPost, "change-user-creator", c.credentials, convertAccount{Account: username, Creator: reseller}, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "change-user-creator", convertAccount{Account: username, Creator: reseller}, nil); err != nil {
 		return err
 	}
 
@@ -96,7 +96,7 @@ func (c *AdminContext) MoveUserToReseller(username string, reseller string) erro
 func (c *AdminContext) RestartDirectAdmin() error {
 	var response apiGenericResponseN
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "restart", c.credentials, nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "restart", nil, &response); err != nil {
 		return err
 	}
 
@@ -106,7 +106,7 @@ func (c *AdminContext) RestartDirectAdmin() error {
 func (c *AdminContext) UpdateDirectAdmin() error {
 	var response apiGenericResponseN
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "version/update", c.credentials, nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "version/update", nil, &response); err != nil {
 		return err
 	}
 

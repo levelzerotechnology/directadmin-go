@@ -51,7 +51,7 @@ func (c *UserContext) CreateDNSRecord(domain string, dnsRecord DNSRecord) error 
 		"value":  {rawDNSRecordData.Value},
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DNS_CONTROL?action=add&action_pointers=yes", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DNS_CONTROL?action=add&action_pointers=yes", body, &response); err != nil {
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
 		}
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DNS_CONTROL?action=select&delete=yes", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DNS_CONTROL?action=select&delete=yes", body, &response); err != nil {
 		return err
 	}
 
@@ -97,7 +97,7 @@ func (c *UserContext) GetDNSRecords(domain string) ([]DNSRecord, error) {
 		DNSRecords []rawDNSRecord `json:"records"`
 	}{}
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_DNS_CONTROL?domain="+domain, c.credentials, nil, &rawDNSRecords); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_DNS_CONTROL?domain="+domain, nil, &rawDNSRecords); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +127,7 @@ func (c *UserContext) UpdateDNSRecord(domain string, originalDNSRecord DNSRecord
 		strings.ToLower(originalDNSRecord.Type) + "recs0": {fmt.Sprintf("name=%v&value=%v", originalDNSRecord.Name, originalDNSRecord.Value)},
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_DNS_CONTROL?action=edit&action_pointers=yes", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DNS_CONTROL?action=edit&action_pointers=yes", body, &response); err != nil {
 		return err
 	}
 

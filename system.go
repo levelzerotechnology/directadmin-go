@@ -99,31 +99,31 @@ type BasicSysInfo struct {
 func (c *UserContext) GetBasicSysInfo() (*BasicSysInfo, error) {
 	var basicSysInfo BasicSysInfo
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "info", c.credentials, nil, &basicSysInfo); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "info", nil, &basicSysInfo); err != nil {
 		return nil, fmt.Errorf("failed to get basic sys info: %v", err)
 	}
 
 	return &basicSysInfo, nil
 }
 
-//func (c *UserContext) GetPhpVersions() (*SysInfo, error) {
+// func (c *UserContext) GetPhpVersions() (*SysInfo, error) {
 //	var rawSys rawSysInfo
 //	var sys SysInfo
 //
-//	if _, err := c.api.makeRequest(http.MethodGet, "API_SYSTEM_INFO", c.credentials, &rawSys); err != nil {
+//	if _, err := c.makeRequestOld(http.MethodGet, "API_SYSTEM_INFO", &rawSys); err != nil {
 //		return nil, err
 //	}
 //
 //	sys = rawSys.parse()
 //
 //	return &sys, nil
-//}
+// }
 
 func (c *UserContext) GetSysInfo() (*SysInfo, error) {
 	var rawSys rawSysInfo
 	var sys SysInfo
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_SYSTEM_INFO", c.credentials, nil, &rawSys); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SYSTEM_INFO", nil, &rawSys); err != nil {
 		return nil, err
 	}
 

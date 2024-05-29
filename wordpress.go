@@ -2,10 +2,11 @@ package directadmin
 
 import (
 	"fmt"
-	"github.com/spf13/cast"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/spf13/cast"
 )
 
 type (
@@ -65,7 +66,7 @@ func (c *UserContext) ChangeWordPressUserPassword(locationId string, userId int,
 
 	passwordObject.Password = password
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "wordpress/locations/"+locationId+"/users/"+cast.ToString(userId)+"/change-password", c.credentials, passwordObject, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/locations/"+locationId+"/users/"+cast.ToString(userId)+"/change-password", passwordObject, nil); err != nil {
 		return fmt.Errorf("failed to change wordpress user password: %v", err)
 	}
 
@@ -105,7 +106,7 @@ func (c *UserContext) CreateWordPressInstall(install WordPressInstall, createDat
 		install.FilePath = install.FilePath[1:]
 	}
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "wordpress/install", c.credentials, install, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/install", install, nil); err != nil {
 		if createDatabase {
 			if dbErr := c.DeleteDatabase(install.DbName); dbErr != nil {
 				err = fmt.Errorf("%v: %v", dbErr, err)
@@ -124,7 +125,7 @@ func (c *UserContext) CreateWordPressInstallQuick(install WordPressInstallQuick)
 		install.FilePath = install.FilePath[1:]
 	}
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "wordpress/install-quick", c.credentials, install, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/install-quick", install, nil); err != nil {
 		return err
 	}
 
@@ -132,7 +133,7 @@ func (c *UserContext) CreateWordPressInstallQuick(install WordPressInstallQuick)
 }
 
 func (c *UserContext) DeleteWordPressInstall(id string) error {
-	if _, err := c.api.makeRequestN(http.MethodDelete, "wordpress/locations/"+id, c.credentials, nil, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodDelete, "wordpress/locations/"+id, nil, nil); err != nil {
 		return err
 	}
 
@@ -142,7 +143,7 @@ func (c *UserContext) DeleteWordPressInstall(id string) error {
 func (c *UserContext) GetWordPressInstalls() ([]*WordPressLocation, error) {
 	var wordpressInstalls []*WordPressLocation
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "wordpress/locations", c.credentials, nil, &wordpressInstalls); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "wordpress/locations", nil, &wordpressInstalls); err != nil {
 		return nil, fmt.Errorf("failed to get wordpress installs: %v", err)
 	}
 
@@ -154,7 +155,7 @@ func (c *UserContext) GetWordPressSSOLink(locationId string, userId int) (string
 		URL string `json:"url"`
 	}
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "wordpress/locations/"+locationId+"/users/"+cast.ToString(userId)+"/sso-login", c.credentials, nil, &ssoObject); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/locations/"+locationId+"/users/"+cast.ToString(userId)+"/sso-login", nil, &ssoObject); err != nil {
 		return "", fmt.Errorf("failed to get wordpress installs: %v", err)
 	}
 
@@ -164,7 +165,7 @@ func (c *UserContext) GetWordPressSSOLink(locationId string, userId int) (string
 func (c *UserContext) GetWordPressUsers(locationId string) ([]*WordPressUser, error) {
 	var wordpressUsers []*WordPressUser
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "wordpress/locations/"+locationId+"/users", c.credentials, nil, &wordpressUsers); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "wordpress/locations/"+locationId+"/users", nil, &wordpressUsers); err != nil {
 		return nil, fmt.Errorf("failed to get wordpress users: %v", err)
 	}
 

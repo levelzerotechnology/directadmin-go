@@ -17,7 +17,7 @@ import (
 func (c *UserContext) CheckFileExists(filePath string) error {
 	var response apiGenericResponse
 
-	if _, err := c.api.makeRequest(http.MethodGet, "FILE_MANAGER?action=exists&path="+filePath, c.credentials, nil, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "FILE_MANAGER?action=exists&path="+filePath, nil, &response); err != nil {
 		return err
 	}
 
@@ -71,7 +71,7 @@ func (c *UserContext) CreateFiles(uploadToPath string, filePaths ...string) erro
 		uploadToPath = "/" + uploadToPath
 	}
 
-	if _, err := c.api.uploadFile("FILE_MANAGER?action=upload&path="+uploadToPath, c.credentials, body, &response, writer.FormDataContentType()); err != nil {
+	if _, err := c.uploadFile(http.MethodPost, "/CMD_FILE_MANAGER?action=upload&path="+uploadToPath, body.Bytes(), &response, writer.FormDataContentType()); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 		body.Set("select"+cast.ToString(index), file)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "FILE_MANAGER?action=multiple", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "FILE_MANAGER?action=multiple", body, &response); err != nil {
 		return err
 	}
 
@@ -115,6 +115,26 @@ func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 	return nil
 }
 
+// DownloadFile (user) downloads the given file path from the server
+func (c *UserContext) DownloadFile(filePath string) ([]byte, error) {
+	return c.makeRequestNew(http.MethodGet, "filemanager/download?path="+filePath, nil, nil)
+}
+
+// DownloadFileToDisk (user) wraps DownloadFile and writes the output to the given path
+func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) error {
+	if outputPath == "" {
+		return fmt.Errorf("no file path provided")
+	}
+
+	response, err := c.makeRequestNew(http.MethodGet, "filemanager/download?path="+filePath, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(outputPath, response, 0644)
+}
+
+// ExtractFile unzips the given file path on the server
 func (c *UserContext) ExtractFile(filePath string, file string) error {
 	var response apiGenericResponse
 
@@ -133,7 +153,7 @@ func (c *UserContext) ExtractFile(filePath string, file string) error {
 	body.Set("path", file)
 	body.Set("page", "2")
 
-	if _, err := c.api.makeRequest(http.MethodPost, "FILE_MANAGER?action=extract", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "FILE_MANAGER?action=extract", body, &response); err != nil {
 		return err
 	}
 

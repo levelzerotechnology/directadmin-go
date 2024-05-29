@@ -1,7 +1,9 @@
 package directadmin
 
 import (
+	"bytes"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -57,7 +59,7 @@ type (
 func (c *UserContext) CreateDatabase(database *Database) error {
 	database.Name = c.addUsernamePrefix(database.Name)
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/create-db", c.credentials, database, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "db-manage/create-db", database, nil); err != nil {
 		return err
 	}
 
@@ -68,7 +70,7 @@ func (c *UserContext) CreateDatabaseWithUser(database *DatabaseWithUser) error {
 	database.Name = c.addUsernamePrefix(database.Name)
 	database.User = c.addUsernamePrefix(database.User)
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/create-db-with-user", c.credentials, database, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "db-manage/create-db-with-user", database, nil); err != nil {
 		return err
 	}
 
@@ -78,7 +80,7 @@ func (c *UserContext) CreateDatabaseWithUser(database *DatabaseWithUser) error {
 func (c *UserContext) CreateDatabaseUser(databaseUser *DatabaseUser) error {
 	databaseUser.User = c.addUsernamePrefix(databaseUser.User)
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/create-user", c.credentials, databaseUser, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "db-manage/create-user", databaseUser, nil); err != nil {
 		return err
 	}
 
@@ -88,7 +90,7 @@ func (c *UserContext) CreateDatabaseUser(databaseUser *DatabaseUser) error {
 func (c *UserContext) DeleteDatabase(databaseName string) error {
 	databaseName = c.addUsernamePrefix(databaseName)
 
-	if _, err := c.api.makeRequestN(http.MethodDelete, "db-manage/databases/"+databaseName, c.credentials, nil, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodDelete, "db-manage/databases/"+databaseName, nil, nil); err != nil {
 		return err
 	}
 
@@ -96,8 +98,6 @@ func (c *UserContext) DeleteDatabase(databaseName string) error {
 }
 
 func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat, filePath string) error {
-	var response apiGenericResponse
-
 	name = name + "." + string(format)
 
 	if !strings.Contains(name, c.GetMyUsername()+"_") {
@@ -119,8 +119,13 @@ func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat, fileP
 		}
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "DB/"+name, c.credentials, nil, &response, file); err != nil {
+	resp, err := c.makeRequestOld(http.MethodPost, "DB/"+name, nil, nil)
+	if err != nil {
 		return fmt.Errorf("failed to download database: %v", err)
+	}
+
+	if _, err = file.Write(resp); err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
 	}
 
 	return nil
@@ -130,7 +135,7 @@ func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat, fileP
 func (c *UserContext) ExportDatabase(databaseName string, gzip bool) ([]byte, error) {
 	databaseName = c.addUsernamePrefix(databaseName)
 
-	export, err := c.api.makeRequestN(http.MethodGet, "db-manage/databases/"+databaseName+"/export?gzip="+strconv.FormatBool(gzip), c.credentials, nil, nil)
+	export, err := c.makeRequestNew(http.MethodGet, "db-manage/databases/"+databaseName+"/export?gzip="+strconv.FormatBool(gzip), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +149,7 @@ func (c *UserContext) GetDatabase(databaseName string) (*Database, error) {
 
 	var database Database
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "db-show/databases/"+databaseName, c.credentials, nil, &database); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "db-show/databases/"+databaseName, nil, &database); err != nil {
 		return nil, err
 	}
 
@@ -155,7 +160,7 @@ func (c *UserContext) GetDatabase(databaseName string) (*Database, error) {
 func (c *UserContext) GetDatabases() ([]*Database, error) {
 	var databases []*Database
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "db-show/databases", c.credentials, nil, &databases); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "db-show/databases", nil, &databases); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +171,7 @@ func (c *UserContext) GetDatabases() ([]*Database, error) {
 func (c *UserContext) GetDatabaseProcesses() ([]*DatabaseProcess, error) {
 	var databaseProcesses []*DatabaseProcess
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "db-monitor/processes", c.credentials, nil, &databaseProcesses); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "db-monitor/processes", nil, &databaseProcesses); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +182,23 @@ func (c *UserContext) GetDatabaseProcesses() ([]*DatabaseProcess, error) {
 func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase bool, sql []byte) error {
 	databaseName = c.addUsernamePrefix(databaseName)
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/databases/"+databaseName+"/import?clean="+strconv.FormatBool(emptyExistingDatabase), c.credentials, sql, nil, true); err != nil {
+	var byteBuffer bytes.Buffer
+	multipartWriter := multipart.NewWriter(&byteBuffer)
+
+	formFile, err := multipartWriter.CreateFormFile("sqlfile", "filename")
+	if err != nil {
+		return fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	if _, err = formFile.Write(sql); err != nil {
+		return fmt.Errorf("failed to write to form file: %w", err)
+	}
+
+	if err = multipartWriter.Close(); err != nil {
+		return fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	if _, err = c.uploadFile(http.MethodPost, "/api/db-manage/databases/"+databaseName+"/import?clean="+strconv.FormatBool(emptyExistingDatabase), byteBuffer.Bytes(), nil, multipartWriter.FormDataContentType()); err != nil {
 		return err
 	}
 
@@ -188,7 +209,7 @@ func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase 
 func (c *UserContext) UpdateDatabaseUserHosts(username string, hosts []string) error {
 	username = c.addUsernamePrefix(username)
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/users/"+username+"/change-hosts", c.credentials, hosts, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "db-manage/users/"+username+"/change-hosts", hosts, nil); err != nil {
 		return err
 	}
 
@@ -205,7 +226,7 @@ func (c *UserContext) UpdateDatabaseUserPassword(username string, password strin
 		password,
 	}
 
-	if _, err := c.api.makeRequestN(http.MethodPost, "db-manage/users/"+username+"/change-password", c.credentials, newPassword, nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "db-manage/users/"+username+"/change-password", newPassword, nil); err != nil {
 		return err
 	}
 

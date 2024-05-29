@@ -34,7 +34,7 @@ func (c *UserContext) IssueSSL(domain string, hostnamesToCertify ...string) erro
 		body.Set("le_select"+cast.ToString(index), certDomain)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_SSL", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_SSL", body, &response); err != nil {
 		return err
 	}
 

@@ -32,7 +32,7 @@ type License struct {
 func (c *AdminContext) GetLicense() (*License, error) {
 	var license License
 
-	if _, err := c.api.makeRequestN(http.MethodGet, "license", c.credentials, nil, &license); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "license", nil, &license); err != nil {
 		return nil, fmt.Errorf("failed to get license: %v", err)
 	}
 

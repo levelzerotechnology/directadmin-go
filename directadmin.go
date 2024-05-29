@@ -2,7 +2,6 @@ package directadmin
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -29,7 +28,6 @@ type API struct {
 	cacheEnabled bool
 	debug        bool
 	httpClient   *http.Client
-	ssl          bool
 	timeout      time.Duration
 	url          string
 }
@@ -72,15 +70,6 @@ func New(serverUrl string, timeout time.Duration, cacheEnabled bool, debug bool)
 		api.cache.emailAccounts = make(map[string]EmailAccount)
 		api.cache.packages = make(map[string]Package)
 		api.cache.users = make(map[string]User)
-	}
-
-	switch parsedUrl.Scheme {
-	case "http":
-		api.ssl = false
-	case "https":
-		api.ssl = true
-	default:
-		return nil, fmt.Errorf("invalid url scheme: %v", parsedUrl.Scheme)
 	}
 
 	api.httpClient = &http.Client{Timeout: timeout}

@@ -2,10 +2,11 @@ package directadmin
 
 import (
 	"fmt"
-	"github.com/spf13/cast"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/spf13/cast"
 )
 
 func (c *UserContext) CreateEmailForwarder(domain string, user string, emails ...string) error {
@@ -16,7 +17,7 @@ func (c *UserContext) CreateEmailForwarder(domain string, user string, emails ..
 	body.Set("email", strings.Join(emails, ","))
 	body.Set("user", user)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_EMAIL_FORWARDERS?action=create", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_FORWARDERS?action=create", body, &response); err != nil {
 		return err
 	}
 
@@ -31,7 +32,7 @@ func (c *UserContext) CreateEmailForwarder(domain string, user string, emails ..
 func (c *UserContext) GetEmailForwarders(domain string) (map[string][]string, error) {
 	var emailForwarders = make(map[string][]string)
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_EMAIL_FORWARDERS?domain="+domain, c.credentials, nil, &emailForwarders); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_EMAIL_FORWARDERS?domain="+domain, nil, &emailForwarders); err != nil {
 		return nil, err
 	}
 
@@ -48,7 +49,7 @@ func (c *UserContext) DeleteEmailForwarders(domain string, names ...string) erro
 		body.Set("select"+cast.ToString(index), name)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_EMAIL_FORWARDERS?action=delete", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_FORWARDERS?action=delete", body, &response); err != nil {
 		return err
 	}
 
@@ -67,7 +68,7 @@ func (c *UserContext) UpdateEmailForwarder(domain string, user string, emails ..
 	body.Set("email", strings.Join(emails, ","))
 	body.Set("user", user)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_EMAIL_FORWARDERS?action=modify", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_FORWARDERS?action=modify", body, &response); err != nil {
 		return err
 	}
 

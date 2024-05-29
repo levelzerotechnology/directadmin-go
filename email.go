@@ -31,7 +31,7 @@ func (c *UserContext) CreateEmailAccount(emailAccount EmailAccount) error {
 	body.Set("quota", cast.ToString(emailAccount.DiskQuota))
 	body.Set("limit", cast.ToString(emailAccount.SendQuota))
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_POP?action=create", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_POP?action=create", body, &response); err != nil {
 		return err
 	}
 
@@ -49,7 +49,7 @@ func (c *UserContext) DeleteEmailAccount(domain string, name string) error {
 	body.Set("domain", domain)
 	body.Set("user", name)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_POP?action=delete", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_POP?action=delete", body, &response); err != nil {
 		return err
 	}
 
@@ -75,7 +75,7 @@ func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 		} `json:"emails"`
 	}{}
 
-	if _, err := c.api.makeRequest(http.MethodGet, "EMAIL_POP?bytes=yes&domain="+domain, c.credentials, nil, &rawEmailAccounts); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "EMAIL_POP?bytes=yes&domain="+domain, nil, &rawEmailAccounts); err != nil {
 		return nil, err
 	}
 
@@ -108,6 +108,30 @@ func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 	return emailAccounts, nil
 }
 
+func (c *UserContext) ToggleDKIM(domain string, status bool) error {
+	var response apiGenericResponse
+
+	body := url.Values{}
+	body.Set("action", "set_dkim")
+	body.Set("domain", domain)
+
+	if status {
+		body.Set("enable", "yes")
+	} else {
+		body.Set("disable", "yes")
+	}
+
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_POP", body, &response); err != nil {
+		return err
+	}
+
+	if response.Success != "Success" {
+		return fmt.Errorf("failed to toggle DKIM state: %v", response.Result)
+	}
+
+	return nil
+}
+
 func (c *UserContext) UpdateEmailAccount(emailAccount EmailAccount) error {
 	var response apiGenericResponse
 
@@ -119,7 +143,7 @@ func (c *UserContext) UpdateEmailAccount(emailAccount EmailAccount) error {
 	body.Set("quota", cast.ToString(emailAccount.DiskQuota))
 	body.Set("limit", cast.ToString(emailAccount.SendQuota))
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_POP?action=modify", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_POP?action=modify", body, &response); err != nil {
 		return err
 	}
 
@@ -138,7 +162,7 @@ func (c *UserContext) VerifyEmailAccount(address string, password string) error 
 	body.Set("email", address)
 	body.Set("passwd", password)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_EMAIL_AUTH", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_AUTH", body, &response); err != nil {
 		return err
 	}
 

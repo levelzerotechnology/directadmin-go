@@ -27,7 +27,7 @@ func (c *AdminContext) CreateResellerPackage(pack ResellerPackage) error {
 		return err
 	}
 
-	if _, err = c.api.makeRequest(http.MethodPost, "MANAGE_RESELLER_PACKAGES?add=yes", c.credentials, body, &response); err != nil {
+	if _, err = c.makeRequestOld(http.MethodPost, "MANAGE_RESELLER_PACKAGES?add=yes", body, &response); err != nil {
 		return err
 	}
 
@@ -50,7 +50,7 @@ func (c *AdminContext) DeleteResellerPackages(packs ...string) error {
 		body.Set("select"+cast.ToString(index), pack)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "MANAGE_USER_PACKAGES", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "MANAGE_USER_PACKAGES", body, &response); err != nil {
 		return err
 	}
 
@@ -65,7 +65,7 @@ func (c *AdminContext) DeleteResellerPackages(packs ...string) error {
 func (c *AdminContext) GetResellerPackage(packageName string) (ResellerPackage, error) {
 	var rawPack rawResellerPackage
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_PACKAGES_USER?package="+packageName, c.credentials, nil, &rawPack); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER?package="+packageName, nil, &rawPack); err != nil {
 		return ResellerPackage{}, fmt.Errorf("failed to get package info for %v: %v", packageName, err)
 	}
 
@@ -79,7 +79,7 @@ func (c *AdminContext) GetResellerPackages() ([]ResellerPackage, error) {
 	var packageList []string
 	var packages []ResellerPackage
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_PACKAGES_USER", c.credentials, nil, &packageList); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER", nil, &packageList); err != nil {
 		return nil, err
 	}
 
@@ -138,7 +138,7 @@ func (c *AdminContext) RenameResellerPackage(oldPackName string, newPackName str
 	body.Set("old_package", oldPackName)
 	body.Set("new_package", newPackName)
 
-	if _, err := c.api.makeRequest(http.MethodPost, "MANAGE_USER_PACKAGES?action=rename", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "MANAGE_USER_PACKAGES?action=rename", body, &response); err != nil {
 		return err
 	}
 

@@ -18,6 +18,7 @@ type (
 	UserContext struct {
 		api         *API
 		credentials credentials
+		sessionID   string
 		User        User
 	}
 
@@ -93,7 +94,7 @@ func (c *UserContext) GetMyUserConfig() (*UserConfig, error) {
 	var err error
 	var rawConfig rawUserConfig
 
-	if _, err = c.api.makeRequest(http.MethodGet, "API_SHOW_USER_CONFIG", c.credentials, nil, &rawConfig); err != nil {
+	if _, err = c.makeRequestOld(http.MethodGet, "API_SHOW_USER_CONFIG", nil, &rawConfig); err != nil {
 		return nil, err
 	}
 
@@ -114,7 +115,7 @@ func (c *UserContext) GetMyUserUsage() (*UserUsage, error) {
 		return nil, errors.New("user does not have a domain")
 	}
 
-	if _, err := c.api.makeRequest(http.MethodGet, "USER_STATS?bytes=yes&domain="+c.User.Config.Domain, c.credentials, nil, &rawUsage); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "USER_STATS?bytes=yes&domain="+c.User.Config.Domain, nil, &rawUsage); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +135,7 @@ func (c *UserContext) addUsernamePrefix(check string) string {
 func (c *UserContext) checkObjectExists(body url.Values) error {
 	var response apiGenericResponse
 
-	if _, err := c.api.makeRequest(http.MethodGet, "JSON_VALIDATE?"+body.Encode(), c.credentials, nil, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "JSON_VALIDATE?"+body.Encode(), nil, &response); err != nil {
 		return err
 	}
 

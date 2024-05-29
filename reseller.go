@@ -51,7 +51,7 @@ func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser
 		body.Set("notify", "no")
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_ACCOUNT_USER?action=create", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_ACCOUNT_USER?action=create", body, &response); err != nil {
 		return fmt.Errorf("failed to create user account: %v", err)
 	}
 
@@ -74,7 +74,7 @@ func (c *ResellerContext) DeleteUsers(usernames ...string) error {
 		body.Set("select"+cast.ToString(index), username)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_SELECT_USERS", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_SELECT_USERS", body, &response); err != nil {
 		return err
 	}
 
@@ -89,7 +89,7 @@ func (c *ResellerContext) DeleteUsers(usernames ...string) error {
 func (c *ResellerContext) GetMyUsers() ([]string, error) {
 	var users []string
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_SHOW_USERS", c.credentials, nil, &users); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USERS", nil, &users); err != nil {
 		return nil, err
 	}
 
@@ -175,7 +175,7 @@ func (c *ResellerContext) GetUserConfig(username string) (*UserConfig, error) {
 	var err error
 	var rawConfig rawUserConfig
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_SHOW_USER_CONFIG?user="+username, c.credentials, nil, &rawConfig); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USER_CONFIG?user="+username, nil, &rawConfig); err != nil {
 		return nil, err
 	}
 
@@ -192,7 +192,7 @@ func (c *ResellerContext) GetUserUsage(username string) (*UserUsage, error) {
 	var rawUsage rawUserUsage
 	var usage UserUsage
 
-	if _, err := c.api.makeRequest(http.MethodGet, "API_SHOW_USER_USAGE?bytes=yes&user="+username, c.credentials, nil, &rawUsage); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USER_USAGE?bytes=yes&user="+username, nil, &rawUsage); err != nil {
 		return nil, err
 	}
 
@@ -232,7 +232,7 @@ func (c *ResellerContext) toggleUserSuspension(suspend bool, usernames ...string
 		body.Set("select"+cast.ToString(counter), username)
 	}
 
-	if _, err := c.api.makeRequest(http.MethodPost, "API_SELECT_USERS", c.credentials, body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_SELECT_USERS", body, &response); err != nil {
 		return err
 	}
 
