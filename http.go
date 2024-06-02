@@ -159,7 +159,6 @@ func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Va
 	if resp != nil {
 		if object != nil {
 			if err = json.Unmarshal(resp, &object); err != nil {
-				fmt.Printf("ERROR HERE: %s\n", string(resp))
 				return nil, fmt.Errorf("error unmarshalling response: %w", err)
 			}
 		} else if err = json.Unmarshal(resp, &genericResponse); err == nil && genericResponse.Error != "" {
