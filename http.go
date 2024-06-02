@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
+	"github.com/spf13/cast"
 )
 
 type httpDebug struct {
@@ -55,8 +56,8 @@ func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 		}
 
 		if c.api.debug {
-			if len(responseBytes) > 4096 {
-				debug.Body = "body too long for debug"
+			if len(responseBytes) > 32768 {
+				debug.Body = "body too long for debug: " + cast.ToString(len(responseBytes))
 			} else {
 				debug.Body = string(responseBytes)
 			}
@@ -158,6 +159,7 @@ func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Va
 	if resp != nil {
 		if object != nil {
 			if err = json.Unmarshal(resp, &object); err != nil {
+				fmt.Printf("ERROR HERE: %s\n", string(resp))
 				return nil, fmt.Errorf("error unmarshalling response: %w", err)
 			}
 		} else if err = json.Unmarshal(resp, &genericResponse); err == nil && genericResponse.Error != "" {

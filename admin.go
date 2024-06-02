@@ -74,17 +74,6 @@ func (c *AdminContext) GetResellers() ([]string, error) {
 	return users, nil
 }
 
-// TODO: finish implementation
-func (c *AdminContext) GetResellersWithUsage() ([]string, error) {
-	var users []string
-
-	if _, err := c.makeRequestOld(http.MethodGet, "RESELLER_SHOW", nil, &users); err != nil {
-		return nil, err
-	}
-
-	return users, nil
-}
-
 func (c *AdminContext) MoveUserToReseller(username string, reseller string) error {
 	if _, err := c.makeRequestNew(http.MethodPost, "change-user-creator", convertAccount{Account: username, Creator: reseller}, nil); err != nil {
 		return err

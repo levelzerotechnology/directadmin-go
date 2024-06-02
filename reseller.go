@@ -39,7 +39,7 @@ func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser
 	body.Set("add", "Submit")
 	body.Set("domain", user.Domain)
 	body.Set("email", user.Email)
-	body.Set("ip", user.IpAddresses[0])
+	body.Set("ip", user.IP)
 	body.Set("package", user.Package)
 	body.Set("passwd", password)
 	body.Set("passwd2", password)
@@ -100,8 +100,9 @@ func (c *ResellerContext) GetMyUsers() ([]string, error) {
 	return users, nil
 }
 
-// GetMyUsersWithUsage (reseller) returns all users belonging to the session user, along with their UserConfig and UserUsage data
-func (c *ResellerContext) GetMyUsersWithUsage() ([]User, error) {
+// GetMyUsersWithData (reseller) returns all users belonging to the session user, along with the toggled data (config
+// and/or usage)
+func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage bool) ([]User, error) {
 	var err error
 	var usernames []string
 	var users []User
@@ -123,27 +124,34 @@ func (c *ResellerContext) GetMyUsersWithUsage() ([]User, error) {
 		go func(username string) {
 			defer wg.Done()
 
-			config, err := c.GetUserConfig(username)
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("failed to get user config: %v", err))
-				mu.Unlock()
-				return
+			var user User
+
+			if retrieveConfig {
+				config, err := c.GetUserConfig(username)
+				if err != nil {
+					mu.Lock()
+					errs = append(errs, fmt.Errorf("failed to get user config for %v: %v", username, err))
+					mu.Unlock()
+					return
+				}
+
+				user.Config = *config
 			}
 
-			usage, err := c.GetUserUsage(username)
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("failed to get user usage: %v", err))
-				mu.Unlock()
-				return
+			if retrieveUsage {
+				usage, err := c.GetUserUsage(username)
+				if err != nil {
+					mu.Lock()
+					errs = append(errs, fmt.Errorf("failed to get user usage for %v: %v", username, err))
+					mu.Unlock()
+					return
+				}
+
+				user.Usage = *usage
 			}
 
 			mu.Lock()
-			users = append(users, User{
-				Config: *config,
-				Usage:  *usage,
-			})
+			users = append(users, user)
 			mu.Unlock()
 		}(userToProcess)
 	}
@@ -172,15 +180,8 @@ func (c *ResellerContext) GetMyUsersWithUsage() ([]User, error) {
 // GetUserConfig (reseller) returns the given user's config
 func (c *ResellerContext) GetUserConfig(username string) (*UserConfig, error) {
 	var config UserConfig
-	var err error
-	var rawConfig rawUserConfig
 
-	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USER_CONFIG?user="+username, nil, &rawConfig); err != nil {
-		return nil, err
-	}
-
-	config, err = rawConfig.parse()
-	if err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "users/"+username+"/config", nil, &config); err != nil {
 		return nil, err
 	}
 
@@ -189,14 +190,11 @@ func (c *ResellerContext) GetUserConfig(username string) (*UserConfig, error) {
 
 // GetUserUsage (reseller) returns the given user's usage.
 func (c *ResellerContext) GetUserUsage(username string) (*UserUsage, error) {
-	var rawUsage rawUserUsage
 	var usage UserUsage
 
-	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USER_USAGE?bytes=yes&user="+username, nil, &rawUsage); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "users/"+username+"/usage", nil, &usage); err != nil {
 		return nil, err
 	}
-
-	usage = rawUsage.parse()
 
 	return &usage, nil
 }

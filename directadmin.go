@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	AccountRoleAdmin    = "Admin"
-	AccountRoleReseller = "Reseller"
-	AccountRoleUser     = "User"
+	AccountRoleAdmin    = "admin"
+	AccountRoleReseller = "reseller"
+	AccountRoleUser     = "user"
 )
 
 type API struct {
