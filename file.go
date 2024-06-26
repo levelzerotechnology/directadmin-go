@@ -49,16 +49,22 @@ func (c *UserContext) CreateFiles(uploadToPath string, filePaths ...string) erro
 		var err error
 		filePath, err = filepath.Abs(filePath)
 		if err != nil {
-			continue
+			return fmt.Errorf("failed to resolve file: %w", err)
 		}
 
-		file, _ := os.Open(filePath)
+		file, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to open file: %w", err)
+		}
 		defer file.Close()
 
-		part, _ := writer.CreateFormFile("file"+cast.ToString(counter), filepath.Base(file.Name()))
+		part, err := writer.CreateFormFile("file"+cast.ToString(counter), filepath.Base(file.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create file in form: %w", err)
+		}
 
 		if _, err = io.Copy(part, file); err != nil {
-			return fmt.Errorf("failed to create file: %v", err)
+			return fmt.Errorf("failed to create file: %w", err)
 		}
 	}
 
