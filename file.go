@@ -28,54 +28,6 @@ func (c *UserContext) CheckFileExists(filePath string) error {
 	return nil
 }
 
-// CreateFile (user) creates the provided file for the session user
-//
-// Example: CreateFile("/domains/domain.tld/public_html/file.zip", "file.zip")
-func (c *UserContext) CreateFile(uploadToPath string, localFilePath string) error {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	writer.FormDataContentType()
-
-	var err error
-
-	localFilePath, err = filepath.Abs(localFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve file: %w", err)
-	}
-
-	file, err := os.Open(localFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
-	if err != nil {
-		return fmt.Errorf("failed to create file in form: %w", err)
-	}
-
-	if _, err = io.Copy(part, file); err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-
-	if err = writer.Close(); err != nil {
-		return err
-	}
-
-	var response apiGenericResponseN
-
-	// add / to the beginning of uploadToPath if it doesn't exist
-	if uploadToPath[0] != '/' {
-		uploadToPath = "/" + uploadToPath
-	}
-
-	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager/upload?path="+uploadToPath, body.Bytes(), &response, writer.FormDataContentType()); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // DeleteFiles (user) deletes all the specified files for the session user
 func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 	var response apiGenericResponse
@@ -120,7 +72,7 @@ func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) err
 		return fmt.Errorf("no file path provided")
 	}
 
-	response, err := c.makeRequestNew(http.MethodGet, "filemanager/download?path="+filePath, nil, nil)
+	response, err := c.DownloadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -156,4 +108,62 @@ func (c *UserContext) ExtractFile(filePath string, file string) error {
 	}
 
 	return nil
+}
+
+// UploadFile (user) uploads the provided byte data as a file for the session user
+func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.FormDataContentType()
+
+	part, err := writer.CreateFormFile("file", filepath.Base(uploadToPath))
+	if err != nil {
+		return fmt.Errorf("failed to create file in form: %w", err)
+	}
+
+	if _, err = io.Copy(part, bytes.NewReader(fileData)); err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+
+	if err = writer.Close(); err != nil {
+		return err
+	}
+
+	var response apiGenericResponseN
+
+	// add / to the beginning of uploadToPath if it doesn't exist
+	if uploadToPath[0] != '/' {
+		uploadToPath = "/" + uploadToPath
+	}
+
+	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager/upload?path="+uploadToPath, body.Bytes(), &response, writer.FormDataContentType()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UploadFileFromDisk (user) uploads the provided file for the session user
+//
+// Example: UploadFileFromDisk("/domains/domain.tld/public_html/file.zip", "file.zip")
+func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath string) error {
+	var err error
+
+	localFilePath, err = filepath.Abs(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve file: %w", err)
+	}
+
+	file, err := os.Open(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return c.UploadFile(uploadToPath, fileData)
 }
