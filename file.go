@@ -29,60 +29,48 @@ func (c *UserContext) CheckFileExists(filePath string) error {
 }
 
 // CreateFile (user) creates the provided file for the session user
-func (c *UserContext) CreateFile(uploadToPath string, filePath string) error {
-	return c.CreateFiles(uploadToPath, filePath)
-}
-
-// CreateFiles (user) creates the provided files for the session user
-func (c *UserContext) CreateFiles(uploadToPath string, filePaths ...string) error {
-	if len(filePaths) == 0 {
-		return fmt.Errorf("no files provided")
-	}
-
-	counter := 0
+//
+// Example: CreateFile("/domains/domain.tld/public_html/file.zip", "file.zip")
+func (c *UserContext) CreateFile(uploadToPath string, localFilePath string) error {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-
 	writer.FormDataContentType()
 
-	for _, filePath := range filePaths {
-		var err error
-		filePath, err = filepath.Abs(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to resolve file: %w", err)
-		}
+	var err error
 
-		file, err := os.Open(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to open file: %w", err)
-		}
-		defer file.Close()
-
-		part, err := writer.CreateFormFile("file"+cast.ToString(counter), filepath.Base(file.Name()))
-		if err != nil {
-			return fmt.Errorf("failed to create file in form: %w", err)
-		}
-
-		if _, err = io.Copy(part, file); err != nil {
-			return fmt.Errorf("failed to create file: %w", err)
-		}
+	localFilePath, err = filepath.Abs(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve file: %w", err)
 	}
 
-	writer.Close()
+	file, err := os.Open(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
 
-	var response apiGenericResponse
+	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+	if err != nil {
+		return fmt.Errorf("failed to create file in form: %w", err)
+	}
+
+	if _, err = io.Copy(part, file); err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+
+	if err = writer.Close(); err != nil {
+		return err
+	}
+
+	var response apiGenericResponseN
 
 	// add / to the beginning of uploadToPath if it doesn't exist
 	if uploadToPath[0] != '/' {
 		uploadToPath = "/" + uploadToPath
 	}
 
-	if _, err := c.uploadFile(http.MethodPost, "/CMD_FILE_MANAGER?action=upload&path="+uploadToPath, body.Bytes(), &response, writer.FormDataContentType()); err != nil {
+	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager/upload?path="+uploadToPath, body.Bytes(), &response, writer.FormDataContentType()); err != nil {
 		return err
-	}
-
-	if response.Success != "Upload successful" {
-		return fmt.Errorf("failed to create file: %v", response.Result)
 	}
 
 	return nil

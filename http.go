@@ -188,7 +188,7 @@ func (c *UserContext) uploadFile(method string, endpoint string, data []byte, ob
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
 
-	if resp != nil && object != nil {
+	if resp != nil && len(resp) > 0 && object != nil {
 		if err = json.Unmarshal(resp, &object); err != nil {
 			return nil, fmt.Errorf("error unmarshalling response: %w", err)
 		}
