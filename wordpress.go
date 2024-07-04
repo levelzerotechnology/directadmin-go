@@ -24,6 +24,8 @@ type (
 
 	WordPressInstallQuick struct {
 		AdminEmail string `json:"adminEmail" yaml:"adminEmail"`
+		AdminName  string `json:"adminName" yaml:"adminName"`
+		AdminPass  string `json:"adminPass" yaml:"adminPass"`
 		FilePath   string `json:"filePath" yaml:"filePath"`
 		Title      string `json:"title" yaml:"title"`
 	}
