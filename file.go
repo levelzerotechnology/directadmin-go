@@ -1,10 +1,8 @@
 package directadmin
 
 import (
-	"bytes"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -112,31 +110,12 @@ func (c *UserContext) ExtractFile(filePath string, file string) error {
 
 // UploadFile (user) uploads the provided byte data as a file for the session user
 func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	writer.FormDataContentType()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(uploadToPath))
-	if err != nil {
-		return fmt.Errorf("failed to create file in form: %w", err)
-	}
-
-	if _, err = io.Copy(part, bytes.NewReader(fileData)); err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-
-	if err = writer.Close(); err != nil {
-		return err
-	}
-
-	var response apiGenericResponseN
-
 	// add / to the beginning of uploadToPath if it doesn't exist
 	if uploadToPath[0] != '/' {
 		uploadToPath = "/" + uploadToPath
 	}
 
-	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager/upload?path="+uploadToPath, body.Bytes(), &response, writer.FormDataContentType()); err != nil {
+	if _, err := c.uploadFile(http.MethodPost, "/api/filemanager/upload?path="+uploadToPath, fileData, nil, "application/json"); err != nil {
 		return err
 	}
 
