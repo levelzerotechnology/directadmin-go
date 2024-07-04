@@ -106,18 +106,9 @@ func (c *UserContext) makeRequestNew(method string, endpoint string, body any, o
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
 
-	var genericResponse apiGenericResponseN
-
-	if resp != nil {
-		if object != nil {
-			if err = json.Unmarshal(resp, &object); err != nil {
-				return nil, fmt.Errorf("error unmarshalling response: %w", err)
-			}
-		} else if err = json.Unmarshal(resp, &genericResponse); err == nil {
-			if genericResponse.Message != "" {
-				return nil, errors.New(genericResponse.Type + ": " + genericResponse.Message)
-			}
-			return nil, errors.New(genericResponse.Type)
+	if resp != nil && object != nil {
+		if err = json.Unmarshal(resp, &object); err != nil {
+			return nil, fmt.Errorf("error unmarshalling response: %w", err)
 		}
 	}
 
