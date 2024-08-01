@@ -28,6 +28,26 @@ func (c *ResellerContext) CheckUserExists(username string) error {
 	})
 }
 
+// AddUserIP (reseller) adds an additional IP to a user's account.
+func (c *ResellerContext) AddUserIP(username string, ip string) error {
+	var response apiGenericResponse
+
+	body := url.Values{}
+	body.Set("action", "multi_ip")
+	body.Set("extra_ip", ip)
+	body.Set("user", username)
+
+	if _, err := c.makeRequestOld(http.MethodPost, "MODIFY_USER", body, &response); err != nil {
+		return fmt.Errorf("failed to add IP to user account: %v", err)
+	}
+
+	if response.Success != "IP Added" {
+		return fmt.Errorf("failed to add IP to user account: %v", response.Result)
+	}
+
+	return nil
+}
+
 // CreateUser (reseller) create a user.
 //
 // The following fields must be populated: Domain, Email, IpAddresses, Package, Username

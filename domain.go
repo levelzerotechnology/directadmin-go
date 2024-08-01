@@ -34,6 +34,33 @@ type Domain struct {
 	Username           string   `json:"username" yaml:"username"`
 }
 
+// AddDomainIP (user) adds an additional IP to a domain.
+func (c *UserContext) AddDomainIP(domain string, ip string, createDNSRecords bool) error {
+	var response apiGenericResponse
+
+	body := url.Values{}
+	body.Set("action", "multi_ip")
+	body.Set("add", "yes")
+	body.Set("domain", domain)
+	body.Set("ip", ip)
+
+	if createDNSRecords {
+		body.Set("dns", "yes")
+	} else {
+		body.Set("dns", "no")
+	}
+
+	if _, err := c.makeRequestOld(http.MethodPost, "DOMAIN", body, &response); err != nil {
+		return fmt.Errorf("failed to add IP to domain: %v", err)
+	}
+
+	if response.Success != "IP Added" {
+		return fmt.Errorf("failed to add IP to domain: %v", response.Result)
+	}
+
+	return nil
+}
+
 // CheckDomainExists (user) checks if the given domain exists on the server
 func (c *UserContext) CheckDomainExists(domain string) error {
 	return c.checkObjectExists(url.Values{
