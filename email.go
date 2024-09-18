@@ -154,6 +154,33 @@ func (c *UserContext) UpdateEmailAccount(emailAccount EmailAccount) error {
 	return nil
 }
 
+// UseInternalMailHandler tells the server to use the local mail handler for the given domain. If this is enabled, other
+// domains on the server that email this domain will use the server's local mail handler to deliver the email, rather
+// than looking up the domain's MX records. This is fine if your email is being hosted on the same server, but not
+// otherwise.
+func (c *UserContext) UseInternalMailHandler(domain string, enable bool) error {
+	var response apiGenericResponse
+
+	body := url.Values{}
+	body.Set("domain", domain)
+
+	if enable {
+		body.Set("internal", "yes")
+	} else {
+		body.Set("internal", "no")
+	}
+
+	if _, err := c.makeRequestOld(http.MethodPost, "API_DNS_MX?action=internal", body, &response); err != nil {
+		return err
+	}
+
+	if response.Success != "Option Saved" {
+		return fmt.Errorf("failed to set internal mail handler for %v: %v", domain, response.Result)
+	}
+
+	return nil
+}
+
 // VerifyEmailAccount (user) accepts the full email address as well as the password for the account. If the credentials aren't correct, an error will be returned.
 func (c *UserContext) VerifyEmailAccount(address string, password string) error {
 	var response apiGenericResponse
