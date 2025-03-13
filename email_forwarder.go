@@ -30,7 +30,7 @@ func (c *UserContext) CreateEmailForwarder(domain string, user string, emails ..
 
 // GetEmailForwarders (user) returns an array of email forwarders belonging to the provided domain
 func (c *UserContext) GetEmailForwarders(domain string) (map[string][]string, error) {
-	var emailForwarders = make(map[string][]string)
+	emailForwarders := make(map[string][]string)
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_EMAIL_FORWARDERS?domain="+domain, nil, &emailForwarders); err != nil {
 		return nil, err

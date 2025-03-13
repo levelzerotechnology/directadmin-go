@@ -1,8 +1,10 @@
 package directadmin
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -75,7 +77,7 @@ func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) err
 		return err
 	}
 
-	return os.WriteFile(outputPath, response, 0644)
+	return os.WriteFile(outputPath, response, 0o644)
 }
 
 // ExtractFile unzips the given file path on the server
@@ -108,14 +110,31 @@ func (c *UserContext) ExtractFile(filePath string, file string) error {
 	return nil
 }
 
-// UploadFile (user) uploads the provided byte data as a file for the session user
+// UploadFile uploads the provided byte data as a file for the session user
 func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
-	// add / to the beginning of uploadToPath if it doesn't exist
+	// Add / to the beginning of uploadToPath if it doesn't exist.
 	if uploadToPath[0] != '/' {
 		uploadToPath = "/" + uploadToPath
 	}
 
-	if _, err := c.uploadFile(http.MethodPost, "/api/filemanager/upload?path="+uploadToPath, fileData, nil, "application/json"); err != nil {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, err := writer.CreateFormFile("file", filepath.Base(uploadToPath))
+	if err != nil {
+		return fmt.Errorf("creating form file: %w", err)
+	}
+
+	if _, err = part.Write(fileData); err != nil {
+		return fmt.Errorf("writing file data: %w", err)
+	}
+
+	if err = writer.Close(); err != nil {
+		return fmt.Errorf("finalizing form data: %w", err)
+	}
+
+	// Now use this content type which includes the boundary.
+	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager/upload?dir="+filepath.Dir(uploadToPath)+"&name="+filepath.Base(uploadToPath), body.Bytes(), nil, writer.FormDataContentType()); err != nil {
 		return err
 	}
 
