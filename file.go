@@ -134,7 +134,7 @@ func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
 	}
 
 	// Now use this content type which includes the boundary.
-	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager/upload?dir="+filepath.Dir(uploadToPath)+"&name="+filepath.Base(uploadToPath), body.Bytes(), nil, writer.FormDataContentType()); err != nil {
+	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager-actions/upload?dir="+filepath.Dir(uploadToPath)+"&name="+filepath.Base(uploadToPath), body.Bytes(), nil, writer.FormDataContentType()); err != nil {
 		return err
 	}
 
