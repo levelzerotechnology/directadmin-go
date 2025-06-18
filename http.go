@@ -11,20 +11,20 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/spf13/cast"
 )
 
 type httpDebug struct {
-	Body     string
-	Code     int
-	Endpoint string
-	Start    time.Time
+	Body          string
+	BodyTruncated bool
+	Code          int
+	Endpoint      string
+	Start         time.Time
 }
 
 // makeRequest is the underlying function for HTTP requests. It handles debugging statements, and simple error handling
 func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 	debug := httpDebug{
-		Endpoint: req.URL.Path,
+		Endpoint: getPathWithQuery(req),
 		Start:    time.Now(),
 	}
 	defer c.api.printDebugHTTP(&debug)
@@ -57,7 +57,8 @@ func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 
 		if c.api.debug {
 			if len(responseBytes) > 32768 {
-				debug.Body = "body too long for debug: " + cast.ToString(len(responseBytes))
+				debug.BodyTruncated = true
+				debug.Body = string(responseBytes[:32768])
 			} else {
 				debug.Body = string(responseBytes)
 			}
@@ -190,6 +191,23 @@ func (c *UserContext) uploadFile(method string, endpoint string, data []byte, ob
 
 func (a *API) printDebugHTTP(debug *httpDebug) {
 	if a.debug {
-		fmt.Printf("\nENDPOINT: %v\nSTATUS CODE: %v\nTIME STARTED: %v\nTIME ENDED: %v\nTIME TAKEN: %v\nBODY: %v\n", debug.Endpoint, debug.Code, debug.Start, time.Now(), time.Since(debug.Start), debug.Body)
+		var bodyTruncated string
+		if debug.BodyTruncated {
+			bodyTruncated = " (truncated)"
+		}
+
+		fmt.Printf("\nENDPOINT: %v\nSTATUS CODE: %v\nTIME STARTED: %v\nTIME ENDED: %v\nTIME TAKEN: %v\nBODY%s: %v\n", debug.Endpoint, debug.Code, debug.Start, time.Now(), time.Since(debug.Start), bodyTruncated, debug.Body)
 	}
+}
+
+func getPathWithQuery(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+
+	if req.URL.RawQuery != "" {
+		return req.URL.Path + "?" + req.URL.RawQuery
+	}
+
+	return req.URL.Path
 }

@@ -56,8 +56,8 @@ func (c *UserContext) DeleteSubdomains(deleteData bool, domain string, subdomain
 		return err
 	}
 
-	if response.Success != "Domain Deletion Results" {
-		return fmt.Errorf("failed to delete domain: %v", response.Result)
+	if response.Success != "Subdomains deleted" {
+		return fmt.Errorf("failed to delete subdomain: %v", response.Result)
 	}
 
 	return nil

@@ -36,13 +36,11 @@ type FileMetadata struct {
 
 // CreateDirectory (user) creates the given path, including any missing parent directories.
 func (c *UserContext) CreateDirectory(path string) error {
-	var response apiGenericResponseN
-
 	body := map[string]string{
 		"path": path,
 	}
 
-	if _, err := c.makeRequestNew(http.MethodPost, "/api/filemanager-actions/mkdir", body, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "filemanager-actions/mkdir", body, nil); err != nil {
 		return err
 	}
 
@@ -101,31 +99,34 @@ func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) err
 	return os.WriteFile(outputPath, response, 0o644)
 }
 
-// ExtractFile unzips the given file path on the server.
-func (c *UserContext) ExtractFile(filePath string, file string) error {
-	var response apiGenericResponse
-
-	// Prepend / to the filePath if it doesn't exist.
-	if filePath[0] != '/' {
-		filePath = "/" + filePath
+// ExtractFile (user) unzips the given file path on the server.
+func (c *UserContext) ExtractFile(destinationDir string, source string, mergeAndOverwrite bool) error {
+	if destinationDir == "" || source == "" {
+		return fmt.Errorf("no destination directory or source provided")
 	}
 
-	// Prepend / to the file if it doesn't exist.
-	if file[0] != '/' {
-		file = "/" + file
+	// Prepend / to the filePath if necessary.
+	if destinationDir[0] != '/' {
+		destinationDir = "/" + destinationDir
 	}
 
-	body := url.Values{}
-	body.Set("directory", filePath)
-	body.Set("path", file)
-	body.Set("page", "2")
+	// Prepend / to the file if necessary.
+	if source[0] != '/' {
+		source = "/" + source
+	}
 
-	if _, err := c.makeRequestOld(http.MethodPost, "FILE_MANAGER?action=extract", body, &response); err != nil {
+	body := struct {
+		DestinationDir    string `json:"destinationDir"`
+		MergeAndOverwrite bool   `json:"mergeAndOverwrite"`
+		Source            string `json:"source"`
+	}{
+		DestinationDir:    destinationDir,
+		MergeAndOverwrite: mergeAndOverwrite,
+		Source:            source,
+	}
+
+	if _, err := c.makeRequestNew(http.MethodPost, "filemanager-actions/extract-archive", body, nil); err != nil {
 		return err
-	}
-
-	if response.Success != "File Extracted" {
-		return fmt.Errorf("failed to extract file: %v", response.Result)
 	}
 
 	return nil
@@ -135,7 +136,7 @@ func (c *UserContext) ExtractFile(filePath string, file string) error {
 func (c *UserContext) GetFileMetadata(filePath string) (*FileMetadata, error) {
 	var response *FileMetadata
 
-	if _, err := c.makeRequestNew(http.MethodGet, "/api/filemanager/metadata?path="+filePath, nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet, "filemanager/metadata?path="+filePath, nil, &response); err != nil {
 		return nil, err
 	}
 
@@ -144,15 +145,17 @@ func (c *UserContext) GetFileMetadata(filePath string) (*FileMetadata, error) {
 
 // MovePath (user) moves the given file or directory to the new destination.
 func (c *UserContext) MovePath(source string, destination string, overwrite bool) error {
-	var response apiGenericResponseN
-
-	body := map[string]string{
-		"destination": destination,
-		"overwrite":   fmt.Sprintf("%t", overwrite),
-		"source":      source,
+	body := struct {
+		Destination string `json:"destination"`
+		Overwrite   bool   `json:"overwrite"`
+		Source      string `json:"source"`
+	}{
+		Destination: destination,
+		Overwrite:   overwrite,
+		Source:      source,
 	}
 
-	if _, err := c.makeRequestNew(http.MethodPost, "/api/filemanager-actions/move", body, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "filemanager-actions/move", body, nil); err != nil {
 		return err
 	}
 

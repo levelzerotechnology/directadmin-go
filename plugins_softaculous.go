@@ -18,25 +18,48 @@ const (
 	SoftaculousScriptIDWordPress = 26
 )
 
-type SoftaculousScript struct {
-	AdminEmail         string `url:"admin_email"`
-	AdminPassword      string `url:"admin_pass"`
-	AdminUsername      string `url:"admin_username"`
-	AutoUpgrade        bool   `url:"en_auto_upgrade"`
-	AutoUpgradePlugins bool   `url:"auto_upgrade_plugins"`
-	AutoUpgradeThemes  bool   `url:"auto_upgrade_plugins"`
-	DatabaseName       string `url:"softdb"`
-	DatabasePrefix     string `url:"dbprefix"` // optional
-	Directory          string `url:"softdirectory"`
-	Domain             string `url:"softdomain"`
-	Language           string `url:"language"`
-	NotifyOnInstall    bool   `url:"noemail"`
-	NotifyOnUpdate     bool   `url:"disable_notify_update"`
-	OverwriteExisting  bool   `url:"overwrite_existing"`
-	Protocol           string `url:"softproto"`
-	SiteDescription    string `url:"site_desc"`
-	SiteName           string `json:"site_name"`
-}
+type (
+	SoftaculousInstallation struct {
+		ID                string `json:"insid"`
+		ScriptID          int    `json:"sid"`
+		Ver               string `json:"ver"`
+		ITime             int    `json:"itime"`
+		Path              string `json:"softpath"`
+		URL               string `json:"softurl"`
+		Domain            string `json:"softdomain"`
+		FileIndex         any    `json:"fileindex"` // Sometimes a string slice, other times a map.
+		SiteName          string `json:"site_name"`
+		SoftDB            string `json:"softdb"`
+		SoftDBuser        string `json:"softdbuser"`
+		SoftDBhost        string `json:"softdbhost"`
+		SoftDBpass        string `json:"softdbpass"`
+		DBCreated         bool   `json:"dbcreated"`
+		DBPrefix          string `json:"dbprefix"`
+		ImportSrc         string `json:"import_src"`
+		DisplaySoftDBPass string `json:"display_softdbpass"`
+		ScriptName        string `json:"script_name"`
+	}
+
+	SoftaculousScript struct {
+		AdminEmail         string `url:"admin_email"`
+		AdminPassword      string `url:"admin_pass"`
+		AdminUsername      string `url:"admin_username"`
+		AutoUpgrade        bool   `url:"en_auto_upgrade"`
+		AutoUpgradePlugins bool   `url:"auto_upgrade_plugins"`
+		AutoUpgradeThemes  bool   `url:"auto_upgrade_plugins"`
+		DatabaseName       string `url:"softdb"`
+		DatabasePrefix     string `url:"dbprefix"` // Optional.
+		Directory          string `url:"softdirectory"`
+		Domain             string `url:"softdomain"`
+		Language           string `url:"language"`
+		NotifyOnInstall    bool   `url:"noemail"`
+		NotifyOnUpdate     bool   `url:"disable_notify_update"`
+		OverwriteExisting  bool   `url:"overwrite_existing"`
+		Protocol           string `url:"softproto"`
+		SiteDescription    string `url:"site_desc"`
+		SiteName           string `json:"site_name"`
+	}
+)
 
 func (s *SoftaculousScript) Parse() (url.Values, error) {
 	if err := s.Validate(); err != nil {
@@ -160,7 +183,7 @@ func (c *UserContext) SoftaculousInstallScript(script *SoftaculousScript, script
 
 	body.Set("softsubmit", "1")
 
-	// Softaculous requires a genuine session ID
+	// Softaculous requires a genuine session ID.
 	if c.sessionID == "" {
 		if err = c.CreateSession(); err != nil {
 			return fmt.Errorf("failed to create user session: %w", err)
@@ -173,6 +196,87 @@ func (c *UserContext) SoftaculousInstallScript(script *SoftaculousScript, script
 
 	if len(response.Error) > 0 {
 		return fmt.Errorf("failed to install script: %v", response.Error)
+	}
+
+	return nil
+}
+
+// SoftaculousListInstallations lists all installations accessible to the authenticated user.
+func (c *UserContext) SoftaculousListInstallations() ([]*SoftaculousInstallation, error) {
+	response := struct {
+		Error         map[string]string                              `json:"error"`
+		Installations map[string]map[string]*SoftaculousInstallation `json:"installations"`
+	}{
+		Error:         make(map[string]string),
+		Installations: make(map[string]map[string]*SoftaculousInstallation),
+	}
+
+	// Softaculous requires a genuine session ID
+	if c.sessionID == "" {
+		if err := c.CreateSession(); err != nil {
+			return nil, fmt.Errorf("failed to create user session: %w", err)
+		}
+	}
+
+	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=installations&api=json", nil, &response); err != nil {
+		return nil, err
+	}
+
+	if len(response.Error) > 0 {
+		return nil, fmt.Errorf("failed to uninstall script: %v", response.Error)
+	}
+
+	installations := make([]*SoftaculousInstallation, 0, len(response.Installations))
+	for _, userInstallations := range response.Installations {
+		for _, installation := range userInstallations {
+			installations = append(installations, installation)
+		}
+	}
+
+	return installations, nil
+}
+
+// SoftaculousUninstallScript calls Softaculous's install script API endpoint.
+//
+// Docs: https://www.softaculous.com/docs/api/remote-api/#remove-an-installed-script
+func (c *UserContext) SoftaculousUninstallScript(installID string, deleteFiles bool, deleteDB bool) error {
+	if installID == "" {
+		return errors.New("missing install id")
+	}
+
+	response := struct {
+		Error map[string]string `json:"error"`
+	}{
+		Error: make(map[string]string),
+	}
+
+	body := url.Values{}
+	body.Set("noemail", "1")
+	body.Set("removeins", "1")
+
+	if deleteFiles {
+		body.Set("remove_dir", "1")
+		body.Set("remove_datadir", "1")
+	}
+
+	if deleteDB {
+		body.Set("remove_db", "1")
+		body.Set("remove_dbuser", "1")
+	}
+
+	// Softaculous requires a genuine session ID
+	if c.sessionID == "" {
+		if err := c.CreateSession(); err != nil {
+			return fmt.Errorf("failed to create user session: %w", err)
+		}
+	}
+
+	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=remove&insid="+installID+"&api=json", body, &response); err != nil {
+		return err
+	}
+
+	if len(response.Error) > 0 {
+		return fmt.Errorf("failed to uninstall script: %v", response.Error)
 	}
 
 	return nil
