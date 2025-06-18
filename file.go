@@ -6,12 +6,9 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/spf13/cast"
 )
 
 type FileMetadata struct {
@@ -49,32 +46,34 @@ func (c *UserContext) CreateDirectory(path string) error {
 
 // DeleteFiles (user) deletes all the specified files for the session user.
 func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
-	var response apiGenericResponse
-
-	body := url.Values{}
-	body.Set("button", "delete")
-
-	if skipTrash {
-		body.Set("trash", "no")
-	} else {
-		body.Set("trash", "yes")
+	if len(files) == 0 {
+		return fmt.Errorf("no files provided")
 	}
 
-	for index, file := range files {
-		// add / to the beginning of filePath if it doesn't exist
-		if file[0] != '/' {
-			file = "/" + file
+	normalized := make([]string, len(files))
+
+	for i, f := range files {
+		if len(f) == 0 {
+			return fmt.Errorf("empty file path provided for file %d", i+1)
 		}
 
-		body.Set("select"+cast.ToString(index), file)
+		if f[0] != '/' {
+			f = "/" + f
+		}
+
+		normalized[i] = f
 	}
 
-	if _, err := c.makeRequestOld(http.MethodPost, "FILE_MANAGER?action=multiple", body, &response); err != nil {
+	body := struct {
+		Paths []string `json:"paths"`
+		Trash bool     `json:"trash"`
+	}{
+		Paths: normalized,
+		Trash: !skipTrash,
+	}
+
+	if _, err := c.makeRequestNew(http.MethodPost, "filemanager-actions/remove", body, nil); err != nil {
 		return err
-	}
-
-	if response.Success != "Files deleted" {
-		return fmt.Errorf("failed to delete files: %v", response.Result)
 	}
 
 	return nil
