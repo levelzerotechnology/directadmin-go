@@ -2,19 +2,21 @@ package directadmin
 
 import "net/http"
 
-// Admin inherits Reseller which inherits User
-type Admin struct {
-	Reseller
-}
+type (
+	// Admin inherits Reseller which inherits User
+	Admin struct {
+		Reseller
+	}
 
-type AdminContext struct {
-	ResellerContext
-}
+	AdminContext struct {
+		ResellerContext
+	}
 
-type convertAccount struct {
-	Account string `json:"account,omitempty"`
-	Creator string `json:"creator,omitempty"`
-}
+	convertAccount struct {
+		Account string `json:"account,omitempty"`
+		Creator string `json:"creator,omitempty"`
+	}
+)
 
 func (c *AdminContext) ConvertResellerToUser(username string, reseller string) error {
 	if _, err := c.makeRequestNew(http.MethodPost, "convert-reseller-to-user", convertAccount{Account: username, Creator: reseller}, nil); err != nil {

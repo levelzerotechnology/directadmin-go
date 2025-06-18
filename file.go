@@ -9,26 +9,47 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cast"
 )
 
-// CheckFileExists (user) checks if the given file exists on the server
-func (c *UserContext) CheckFileExists(filePath string) error {
-	var response apiGenericResponse
+type FileMetadata struct {
+	AccessTime time.Time `json:"accessTime"`
+	BirthTime  time.Time `json:"birthTime"`
+	ChangeTime time.Time `json:"changeTime"`
+	GID        int       `json:"gid"`
+	Group      string    `json:"group"`
+	Mode       string    `json:"mode"`
+	ModifyTime time.Time `json:"modifyTime"`
+	Name       string    `json:"name"`
+	SizeBytes  int       `json:"sizeBytes"`
+	Symlink    struct {
+		Resolved string `json:"resolved"`
+		Target   string `json:"target"`
+	} `json:"symlink"`
+	Type     string `json:"type"`
+	UID      int    `json:"uid"`
+	UnixMode int    `json:"unixMode"`
+	User     string `json:"user"`
+}
 
-	if _, err := c.makeRequestOld(http.MethodGet, "FILE_MANAGER?action=exists&path="+filePath, nil, &response); err != nil {
-		return err
+// CreateDirectory (user) creates the given path, including any missing parent directories.
+func (c *UserContext) CreateDirectory(path string) error {
+	var response apiGenericResponseN
+
+	body := map[string]string{
+		"path": path,
 	}
 
-	if response.Success != "File exists check" {
-		return fmt.Errorf("file doesn't exist: %v", response.Error)
+	if _, err := c.makeRequestNew(http.MethodPost, "/api/filemanager-actions/mkdir", body, &response); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// DeleteFiles (user) deletes all the specified files for the session user
+// DeleteFiles (user) deletes all the specified files for the session user.
 func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 	var response apiGenericResponse
 
@@ -61,12 +82,12 @@ func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 	return nil
 }
 
-// DownloadFile (user) downloads the given file path from the server
+// DownloadFile (user) downloads the given file path from the server.
 func (c *UserContext) DownloadFile(filePath string) ([]byte, error) {
 	return c.makeRequestNew(http.MethodGet, "filemanager/download?path="+filePath, nil, nil)
 }
 
-// DownloadFileToDisk (user) wraps DownloadFile and writes the output to the given path
+// DownloadFileToDisk (user) wraps DownloadFile and writes the output to the given path.
 func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) error {
 	if outputPath == "" {
 		return fmt.Errorf("no file path provided")
@@ -80,16 +101,16 @@ func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) err
 	return os.WriteFile(outputPath, response, 0o644)
 }
 
-// ExtractFile unzips the given file path on the server
+// ExtractFile unzips the given file path on the server.
 func (c *UserContext) ExtractFile(filePath string, file string) error {
 	var response apiGenericResponse
 
-	// add / to the beginning of filePath if it doesn't exist
+	// Prepend / to the filePath if it doesn't exist.
 	if filePath[0] != '/' {
 		filePath = "/" + filePath
 	}
 
-	// add / to the beginning of file if it doesn't exist
+	// Prepend / to the file if it doesn't exist.
 	if file[0] != '/' {
 		file = "/" + file
 	}
@@ -110,9 +131,37 @@ func (c *UserContext) ExtractFile(filePath string, file string) error {
 	return nil
 }
 
+// GetFileMetadata (user) retrieves file metadata for the given path.
+func (c *UserContext) GetFileMetadata(filePath string) (*FileMetadata, error) {
+	var response *FileMetadata
+
+	if _, err := c.makeRequestNew(http.MethodGet, "/api/filemanager/metadata?path="+filePath, nil, &response); err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// MovePath (user) moves the given file or directory to the new destination.
+func (c *UserContext) MovePath(source string, destination string, overwrite bool) error {
+	var response apiGenericResponseN
+
+	body := map[string]string{
+		"destination": destination,
+		"overwrite":   fmt.Sprintf("%t", overwrite),
+		"source":      source,
+	}
+
+	if _, err := c.makeRequestNew(http.MethodPost, "/api/filemanager-actions/move", body, &response); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // UploadFile uploads the provided byte data as a file for the session user
 func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
-	// Add / to the beginning of uploadToPath if it doesn't exist.
+	// Prepend / to uploadToPath if it doesn't exist.
 	if uploadToPath[0] != '/' {
 		uploadToPath = "/" + uploadToPath
 	}
@@ -141,7 +190,7 @@ func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
 	return nil
 }
 
-// UploadFileFromDisk (user) uploads the provided file for the session user
+// UploadFileFromDisk (user) uploads the provided file for the session user.
 //
 // Example: UploadFileFromDisk("/domains/domain.tld/public_html/file.zip", "file.zip")
 func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath string) error {
