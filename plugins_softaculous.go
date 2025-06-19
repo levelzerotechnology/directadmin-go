@@ -1,6 +1,7 @@
 package directadmin
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -203,37 +204,46 @@ func (c *UserContext) SoftaculousInstallScript(script *SoftaculousScript, script
 
 // SoftaculousListInstallations lists all installations accessible to the authenticated user.
 func (c *UserContext) SoftaculousListInstallations() ([]*SoftaculousInstallation, error) {
-	response := struct {
-		Error         map[string]string                              `json:"error"`
-		Installations map[string]map[string]*SoftaculousInstallation `json:"installations"`
-	}{
-		Error:         make(map[string]string),
-		Installations: make(map[string]map[string]*SoftaculousInstallation),
+	type rawResponse struct {
+		Error         map[string]string `json:"error"`
+		Installations json.RawMessage   `json:"installations"`
 	}
 
-	// Softaculous requires a genuine session ID
+	var raw rawResponse
+
 	if c.sessionID == "" {
 		if err := c.CreateSession(); err != nil {
 			return nil, fmt.Errorf("failed to create user session: %w", err)
 		}
 	}
 
-	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=installations&api=json", nil, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=installations&api=json", nil, &raw); err != nil {
 		return nil, err
 	}
 
-	if len(response.Error) > 0 {
-		return nil, fmt.Errorf("failed to uninstall script: %v", response.Error)
+	if len(raw.Error) > 0 {
+		return nil, fmt.Errorf("failed to list installations: %v", raw.Error)
 	}
 
-	installations := make([]*SoftaculousInstallation, 0, len(response.Installations))
-	for _, userInstallations := range response.Installations {
-		for _, installation := range userInstallations {
-			installations = append(installations, installation)
+	// Try unmarshalling as a map first.
+	var installationsMap map[string]map[string]*SoftaculousInstallation
+	if err := json.Unmarshal(raw.Installations, &installationsMap); err == nil {
+		var installations []*SoftaculousInstallation
+		for _, userInstalls := range installationsMap {
+			for _, install := range userInstalls {
+				installations = append(installations, install)
+			}
 		}
+		return installations, nil
 	}
 
-	return installations, nil
+	// Fallback: Check if it's an empty array.
+	var installationsArray []any
+	if err := json.Unmarshal(raw.Installations, &installationsArray); err == nil && len(installationsArray) == 0 {
+		return []*SoftaculousInstallation{}, nil
+	}
+
+	return nil, errors.New("unexpected format for installations field")
 }
 
 // SoftaculousUninstallScript calls Softaculous's install script API endpoint.
