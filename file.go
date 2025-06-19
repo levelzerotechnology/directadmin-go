@@ -162,7 +162,7 @@ func (c *UserContext) MovePath(source string, destination string, overwrite bool
 }
 
 // UploadFile uploads the provided byte data as a file for the session user
-func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
+func (c *UserContext) UploadFile(uploadToPath string, fileData []byte, overwrite bool) error {
 	// Prepend / to uploadToPath if it doesn't exist.
 	if uploadToPath[0] != '/' {
 		uploadToPath = "/" + uploadToPath
@@ -184,8 +184,13 @@ func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
 		return fmt.Errorf("finalizing form data: %w", err)
 	}
 
+	overwriteQuery := "false"
+	if overwrite {
+		overwriteQuery = "true"
+	}
+
 	// Now use this content type which includes the boundary.
-	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager-actions/upload?dir="+filepath.Dir(uploadToPath)+"&name="+filepath.Base(uploadToPath), body.Bytes(), nil, writer.FormDataContentType()); err != nil {
+	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager-actions/upload?dir="+filepath.Dir(uploadToPath)+"&overwrite="+overwriteQuery+"&name="+filepath.Base(uploadToPath), body.Bytes(), nil, writer.FormDataContentType()); err != nil {
 		return err
 	}
 
@@ -195,7 +200,7 @@ func (c *UserContext) UploadFile(uploadToPath string, fileData []byte) error {
 // UploadFileFromDisk (user) uploads the provided file for the session user.
 //
 // Example: UploadFileFromDisk("/domains/domain.tld/public_html/file.zip", "file.zip")
-func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath string) error {
+func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath string, overwrite bool) error {
 	var err error
 
 	localFilePath, err = filepath.Abs(localFilePath)
@@ -214,5 +219,5 @@ func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath stri
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	return c.UploadFile(uploadToPath, fileData)
+	return c.UploadFile(uploadToPath, fileData, overwrite)
 }
