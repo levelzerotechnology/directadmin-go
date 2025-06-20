@@ -17,17 +17,51 @@ type httpDebug struct {
 	Body          string
 	BodyTruncated bool
 	Code          int
+	Cookies       []string
 	Endpoint      string
+	Method        string
 	Start         time.Time
+}
+
+func (c *UserContext) getRequestURLNew(endpoint string) string {
+	return fmt.Sprintf("%s/api/%s", c.api.url, endpoint)
+}
+
+func (c *UserContext) getRequestURLOld(endpoint string) string {
+	return fmt.Sprintf("%s/CMD_%s", c.api.url, endpoint)
 }
 
 // makeRequest is the underlying function for HTTP requests. It handles debugging statements, and simple error handling
 func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
+	var debugCookies []string
+
+	cookiesToSet := c.cookieJar.Cookies(req.URL)
+	sessionCookieSet := false
+	for _, cookie := range cookiesToSet {
+		req.AddCookie(cookie)
+
+		if cookie.Name == "csrftoken" {
+			req.Header.Set("X-CSRFToken", cookie.Value)
+		} else if cookie.Name == "session" {
+			sessionCookieSet = true
+		}
+
+		if c.api.debug {
+			debugCookies = append(debugCookies, cookie.String())
+		}
+	}
+
 	debug := httpDebug{
+		Cookies:  debugCookies,
 		Endpoint: getPathWithQuery(req),
+		Method:   req.Method,
 		Start:    time.Now(),
 	}
 	defer c.api.printDebugHTTP(&debug)
+
+	if !sessionCookieSet {
+		req.SetBasicAuth(c.credentials.username, c.credentials.passkey)
+	}
 
 	resp, err := c.api.httpClient.Do(req)
 	if err != nil {
@@ -39,12 +73,9 @@ func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 		debug.Code = resp.StatusCode
 	}
 
-	// exists solely for user session switching when logging in as a user under a reseller
+	// Required for plugin usage in particular (session and csrf token cookies).
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "session" {
-			c.sessionID = cookie.Value
-			break
-		}
+		c.cookieJar.SetCookies(req.URL, []*http.Cookie{cookie})
 	}
 
 	var responseBytes []byte
@@ -85,7 +116,7 @@ func (c *UserContext) makeRequestNew(method string, endpoint string, body any, o
 		}
 	}
 
-	req, err := http.NewRequest(strings.ToUpper(method), c.api.url+"/api/"+endpoint, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequest(strings.ToUpper(method), c.getRequestURLNew(endpoint), bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -95,12 +126,6 @@ func (c *UserContext) makeRequestNew(method string, endpoint string, body any, o
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", c.api.url)
 	req.URL.RawQuery = query.Encode()
-
-	if c.sessionID != "" {
-		req.AddCookie(&http.Cookie{Name: "session", Value: c.sessionID})
-	} else {
-		req.SetBasicAuth(c.credentials.username, c.credentials.passkey)
-	}
 
 	resp, err := c.makeRequest(req)
 	if err != nil {
@@ -118,7 +143,7 @@ func (c *UserContext) makeRequestNew(method string, endpoint string, body any, o
 
 // makeRequestOld supports DirectAdmin's old API
 func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Values, object any) ([]byte, error) {
-	req, err := http.NewRequest(strings.ToUpper(method), c.api.url+"/CMD_"+endpoint, strings.NewReader(body.Encode()))
+	req, err := http.NewRequest(strings.ToUpper(method), c.getRequestURLOld(endpoint), strings.NewReader(body.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -129,12 +154,6 @@ func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Va
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", c.api.url)
 	req.URL.RawQuery = query.Encode()
-
-	if c.sessionID != "" {
-		req.AddCookie(&http.Cookie{Name: "session", Value: c.sessionID})
-	} else {
-		req.SetBasicAuth(c.credentials.username, c.credentials.passkey)
-	}
 
 	var genericResponse apiGenericResponse
 
@@ -172,7 +191,6 @@ func (c *UserContext) uploadFile(method string, endpoint string, data []byte, ob
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Referer", c.api.url)
-	req.SetBasicAuth(c.credentials.username, c.credentials.passkey)
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.makeRequest(req)
@@ -196,7 +214,7 @@ func (a *API) printDebugHTTP(debug *httpDebug) {
 			bodyTruncated = " (truncated)"
 		}
 
-		fmt.Printf("\nENDPOINT: %v\nSTATUS CODE: %v\nTIME STARTED: %v\nTIME ENDED: %v\nTIME TAKEN: %v\nBODY%s: %v\n", debug.Endpoint, debug.Code, debug.Start, time.Now(), time.Since(debug.Start), bodyTruncated, debug.Body)
+		fmt.Printf("\nENDPOINT: %v %v\nSTATUS CODE: %v\nTIME STARTED: %v\nTIME ENDED: %v\nTIME TAKEN: %v\nCOOKIES: %s\nRESP BODY%s: %v\n", debug.Method, debug.Endpoint, debug.Code, debug.Start, time.Now(), time.Since(debug.Start), strings.Join(debug.Cookies, ";"), bodyTruncated, debug.Body)
 	}
 }
 

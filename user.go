@@ -15,8 +15,8 @@ type (
 
 	UserContext struct {
 		api         *API
+		cookieJar   http.CookieJar
 		credentials credentials
-		sessionID   string
 		User        User
 	}
 

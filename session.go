@@ -2,6 +2,7 @@ package directadmin
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -56,7 +57,7 @@ type Session struct {
 	Demo              bool `json:"demo"`
 	DirectadminConfig struct {
 		AllowForwarderPipe                 bool     `json:"allowForwarderPipe"`
-		FtpSeparator                       string   `json:"ftpSeparator"`
+		FTPSeparator                       string   `json:"ftpSeparator"`
 		HomeOverrides                      []string `json:"homeOverrides"`
 		LoginKeys                          bool     `json:"loginKeys"`
 		MaxFilesizeBytes                   int      `json:"maxFilesizeBytes"`
@@ -77,14 +78,23 @@ type Session struct {
 	HavePluginHooksUser     bool   `json:"havePluginHooksUser"`
 	HomeDir                 string `json:"homeDir"`
 	LoginAsDNSControl       bool   `json:"loginAsDNSControl"`
-	PhpmyadminPublic        bool   `json:"phpmyadminPublic"`
+	PHPMyAdminPublic        bool   `json:"phpmyadminPublic"`
 	RealUsername            string `json:"realUsername"`
 	SelectedDomain          string `json:"selectedDomain"`
 	SessionID               string `json:"sessionID"`
 	TicketsEnabled          bool   `json:"ticketsEnabled"`
 }
 
+// CreateSession (user) creates a session for the provided credentials if one does not already exist.
 func (c *UserContext) CreateSession() error {
+	// Avoid creating a session if we already have one.
+	apiCookies := c.cookieJar.Cookies(c.api.parsedURL)
+	for _, cookie := range apiCookies {
+		if cookie.Name == "session" {
+			return nil
+		}
+	}
+
 	response := struct {
 		SessionID string `json:"sessionID"`
 	}{}
@@ -97,7 +107,7 @@ func (c *UserContext) CreateSession() error {
 		c.credentials.passkey,
 	}
 
-	// if we're a reseller logged in as a user, change the username to the reseller
+	// If we're a reseller logged in as a user, change the username to the reseller.
 	if c.GetMyUsername() != c.credentials.username {
 		request.Username = strings.Split(c.credentials.username, "|")[0]
 	}
@@ -106,9 +116,9 @@ func (c *UserContext) CreateSession() error {
 		return err
 	}
 
-	c.sessionID = response.SessionID
+	c.cookieJar.SetCookies(c.api.parsedURL, []*http.Cookie{{Name: "session", Value: response.SessionID}})
 
-	// if we're a reseller logged in as a user, switch the session to the user
+	// If we're a reseller logged in as a user, switch the session to the user.
 	if c.GetMyUsername() != c.credentials.username {
 		switchRequest := struct {
 			Username string `json:"username"`
@@ -132,4 +142,21 @@ func (c *UserContext) GetSessionInfo() (*Session, error) {
 	}
 
 	return &session, nil
+}
+
+// getCSRFToken retrieves the CSRF token from the cookie jar, for the provided URL.
+func (c *UserContext) getCSRFToken(rawURL string) string {
+	endpointURL, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+
+	cookies := c.cookieJar.Cookies(endpointURL)
+	for _, cookie := range cookies {
+		if cookie.Name == "csrftoken" {
+			return cookie.Value
+		}
+	}
+
+	return ""
 }

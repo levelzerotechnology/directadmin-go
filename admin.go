@@ -35,7 +35,7 @@ func (c *AdminContext) ConvertUserToReseller(username string) error {
 }
 
 func (c *AdminContext) DisableRedis() error {
-	var response apiGenericResponseN
+	var response apiGenericResponseNew
 
 	if _, err := c.makeRequestNew(http.MethodPost, "redis/disable", nil, &response); err != nil {
 		return err
@@ -45,7 +45,7 @@ func (c *AdminContext) DisableRedis() error {
 }
 
 func (c *AdminContext) EnableRedis() error {
-	var response apiGenericResponseN
+	var response apiGenericResponseNew
 
 	if _, err := c.makeRequestNew(http.MethodPost, "redis/enable", nil, &response); err != nil {
 		return err
@@ -85,7 +85,7 @@ func (c *AdminContext) MoveUserToReseller(username string, reseller string) erro
 }
 
 func (c *AdminContext) RestartDirectAdmin() error {
-	var response apiGenericResponseN
+	var response apiGenericResponseNew
 
 	if _, err := c.makeRequestNew(http.MethodPost, "restart", nil, &response); err != nil {
 		return err
@@ -95,7 +95,7 @@ func (c *AdminContext) RestartDirectAdmin() error {
 }
 
 func (c *AdminContext) UpdateDirectAdmin() error {
-	var response apiGenericResponseN
+	var response apiGenericResponseNew
 
 	if _, err := c.makeRequestNew(http.MethodPost, "version/update", nil, &response); err != nil {
 		return err

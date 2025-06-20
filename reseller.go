@@ -50,7 +50,7 @@ func (c *ResellerContext) AddUserIP(username string, ip string) error {
 
 // CreateUser (reseller) create a user.
 //
-// The following fields must be populated: Domain, Email, IpAddresses, Package, Username
+// The following fields must be populated: Domain, Email, IPAddresses, Package, Username
 func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser bool, customPackage *Package) error {
 	var response apiGenericResponse
 

@@ -20,7 +20,7 @@ type Domain struct {
 	DiskQuota          int      `json:"diskQuota" yaml:"diskQuota"`
 	DiskUsage          int      `json:"diskUsage" yaml:"diskUsage"`
 	Domain             string   `json:"domain" yaml:"domain"`
-	IpAddresses        []string `json:"ipAddresses" yaml:"ipAddresses"`
+	IPAddresses        []string `json:"ipAddresses" yaml:"ipAddresses"`
 	ModSecurityEnabled bool     `json:"modSecurityEnabled" yaml:"modSecurityEnabled"`
 	OpenBaseDirEnabled bool     `json:"openBaseDirEnabled" yaml:"openBaseDirEnabled"`
 	PhpEnabled         bool     `json:"phpEnabled" yaml:"phpEnabled"`

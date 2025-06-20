@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"strings"
 	"time"
 )
@@ -43,16 +44,6 @@ func (c *UserContext) CreateLoginURL(loginKeyURL *LoginKeyURL) error {
 	return nil
 }
 
-func (c *UserContext) GetLoginURLs() ([]*LoginKeyURL, error) {
-	var loginKeyURLs []*LoginKeyURL
-
-	if _, err := c.makeRequestNew(http.MethodGet, "login-keys/urls", nil, &loginKeyURLs); err != nil {
-		return nil, fmt.Errorf("failed to get login URLs: %w", err)
-	}
-
-	return loginKeyURLs, nil
-}
-
 func (c *AdminContext) GetLoginHistory() ([]*LoginHistory, error) {
 	var loginHistory []*LoginHistory
 
@@ -67,10 +58,20 @@ func (c *AdminContext) GetLoginHistory() ([]*LoginHistory, error) {
 	return loginHistory, nil
 }
 
+func (c *UserContext) GetLoginURLs() ([]*LoginKeyURL, error) {
+	var loginKeyURLs []*LoginKeyURL
+
+	if _, err := c.makeRequestNew(http.MethodGet, "login-keys/urls", nil, &loginKeyURLs); err != nil {
+		return nil, fmt.Errorf("failed to get login URLs: %w", err)
+	}
+
+	return loginKeyURLs, nil
+}
+
 // GetMyUsername returns the current user's username. This is particularly useful when logging in as another user, as it
 // trims the admin/reseller username automatically
 func (c *UserContext) GetMyUsername() string {
-	// if user is logged in via reseller, we need to remove the reseller username from the context's username
+	// If the user is logged in via reseller, we need to remove the reseller username from the context's username.
 	if strings.Contains(c.credentials.username, "|") {
 		return strings.Split(c.credentials.username, "|")[1]
 	}
@@ -156,15 +157,21 @@ func (c *ResellerContext) LoginAsMyUser(username string) (*UserContext, error) {
 }
 
 func (a *API) login(username string, passkey string) (*UserContext, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
+	}
+
 	userCtx := UserContext{
-		api: a,
+		api:       a,
+		cookieJar: jar,
 		credentials: credentials{
 			username: username,
 			passkey:  passkey,
 		},
 	}
 
-	if err := userCtx.Login(); err != nil {
+	if err = userCtx.Login(); err != nil {
 		return nil, err
 	}
 

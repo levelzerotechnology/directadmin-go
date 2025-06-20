@@ -185,10 +185,8 @@ func (c *UserContext) SoftaculousInstallScript(script *SoftaculousScript, script
 	body.Set("softsubmit", "1")
 
 	// Softaculous requires a genuine session ID.
-	if c.sessionID == "" {
-		if err = c.CreateSession(); err != nil {
-			return fmt.Errorf("failed to create user session: %w", err)
-		}
+	if err = c.CreateSession(); err != nil {
+		return fmt.Errorf("failed to create user session: %w", err)
 	}
 
 	if _, err = c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=software&soft="+cast.ToString(scriptID)+"&multi_ver=1&api=json", body, &response); err != nil {
@@ -211,10 +209,8 @@ func (c *UserContext) SoftaculousListInstallations() ([]*SoftaculousInstallation
 
 	var raw rawResponse
 
-	if c.sessionID == "" {
-		if err := c.CreateSession(); err != nil {
-			return nil, fmt.Errorf("failed to create user session: %w", err)
-		}
+	if err := c.CreateSession(); err != nil {
+		return nil, fmt.Errorf("failed to create user session: %w", err)
 	}
 
 	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=installations&api=json", nil, &raw); err != nil {
@@ -275,10 +271,8 @@ func (c *UserContext) SoftaculousUninstallScript(installID string, deleteFiles b
 	}
 
 	// Softaculous requires a genuine session ID
-	if c.sessionID == "" {
-		if err := c.CreateSession(); err != nil {
-			return fmt.Errorf("failed to create user session: %w", err)
-		}
+	if err := c.CreateSession(); err != nil {
+		return fmt.Errorf("failed to create user session: %w", err)
 	}
 
 	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=remove&insid="+installID+"&api=json", body, &response); err != nil {
