@@ -221,8 +221,6 @@ func (c *UserContext) PHPSelectorSetExtensions(version string, extensions ...str
 		Result string `json:"result"`
 	}{}
 
-	fmt.Println(body.Encode())
-
 	if _, err = c.makeRequestOld(http.MethodPost, "PLUGINS/phpselector/index.raw?c=send-request", body, &resp); err != nil {
 		return err
 	}
