@@ -27,6 +27,11 @@ func (c *UserContext) GetPHPVersions(domainName string) ([]*PHPVersion, error) {
 		PHPVersion2 string `json:"php2_ver"`
 		PHPVersion3 string `json:"php3_ver"`
 		PHPVersion4 string `json:"php4_ver"`
+		PHPVersion5 string `json:"php5_ver"`
+		PHPVersion6 string `json:"php6_ver"`
+		PHPVersion7 string `json:"php7_ver"`
+		PHPVersion8 string `json:"php8_ver"`
+		PHPVersion9 string `json:"php9_ver"`
 	}
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_ADDITIONAL_DOMAINS?domain="+domainName+"&action=view", nil, &rawPHPVersions); err != nil {
@@ -38,6 +43,11 @@ func (c *UserContext) GetPHPVersions(domainName string) ([]*PHPVersion, error) {
 		"1": rawPHPVersions.PHPVersion2,
 		"2": rawPHPVersions.PHPVersion3,
 		"3": rawPHPVersions.PHPVersion4,
+		"4": rawPHPVersions.PHPVersion5,
+		"5": rawPHPVersions.PHPVersion6,
+		"6": rawPHPVersions.PHPVersion7,
+		"7": rawPHPVersions.PHPVersion8,
+		"8": rawPHPVersions.PHPVersion9,
 	}
 
 	versions := make([]*PHPVersion, 0, len(rawPHPVersions.PHPSelect))
