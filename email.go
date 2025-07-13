@@ -20,6 +20,7 @@ type EmailAccount struct {
 	Username  string `json:"username" yaml:"username"`
 }
 
+// CreateEmailAccount (user) creates the given email account.
 func (c *UserContext) CreateEmailAccount(emailAccount EmailAccount) error {
 	var response apiGenericResponse
 
@@ -60,7 +61,7 @@ func (c *UserContext) DeleteEmailAccount(domain string, name string) error {
 	return nil
 }
 
-// GetEmailAccounts (user) returns an array of email accounts belonging to the provided domain
+// GetEmailAccounts (user) returns an array of email accounts belonging to the provided domain.
 func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 	var emailAccounts []EmailAccount
 	rawEmailAccounts := struct {
@@ -89,10 +90,9 @@ func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 				Username:  emailAccount.Username,
 			}
 
-			// this is necessary because DA either returns a string, or a map with the disk usage in a "usage" field depending on which usage endpoint we hit
-			switch emailAccount.Sent.(type) {
-			case map[string]any:
-				emailAccountSent := emailAccount.Sent.(map[string]any)
+			// This is necessary because DA either returns a string, or a map with the disk usage in a "usage" field
+			// depending on which usage endpoint we hit.
+			if emailAccountSent, ok := emailAccount.Sent.(map[string]any); ok {
 				email.SendQuota = cast.ToInt(emailAccountSent["send_limit"])
 				email.SendUsage = cast.ToInt(emailAccountSent["sent"])
 			}
@@ -108,6 +108,7 @@ func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 	return emailAccounts, nil
 }
 
+// ToggleDKIM (user) sets DKIM for the given domain.
 func (c *UserContext) ToggleDKIM(domain string, status bool) error {
 	var response apiGenericResponse
 
@@ -132,6 +133,7 @@ func (c *UserContext) ToggleDKIM(domain string, status bool) error {
 	return nil
 }
 
+// UpdateEmailAccount (user) updates/overwrites the given email account.
 func (c *UserContext) UpdateEmailAccount(emailAccount EmailAccount) error {
 	var response apiGenericResponse
 

@@ -10,50 +10,50 @@ type rawDomain struct {
 	Active         string `json:"active"`
 	BandwidthQuota string `json:"bandwidth_limit"`
 	BandwidthUsage string `json:"bandwidth"`
-	CgiEnabled     string `json:"cgi"`
+	CGIEnabled     string `json:"cgi"`
 	DefaultDomain  string `json:"defaultdomain"`
 	DiskQuota      string `json:"quota_limit"`
 	DiskUsage      string `json:"quota"`
 	Domain         string `json:"domain"`
 	ExtraData      struct {
 		ModSecurityEnabled string `json:"modsecurity"`
-		PhpOptions         map[string]struct {
+		PHPOptions         map[string]struct {
 			Index    string `json:"value"`
 			Selected string `json:"selected"`
 			Version  string `json:"text"`
 		} `json:"php1_select"`
-		PhpSelectorEnabled string `json:"has_php_selector"`
+		PHPSelectorEnabled string `json:"has_php_selector"`
 	} `json:"-"`
-	IpAddresses        []string `json:"ips"`
+	IPAddresses        []string `json:"ips"`
 	OpenBaseDirEnabled string   `json:"open_basedir"`
-	PhpEnabled         string   `json:"php"`
+	PHPEnabled         string   `json:"php"`
 	SafeMode           string   `json:"safemode"`
-	SslEnabled         string   `json:"ssl"`
+	SSLEnabled         string   `json:"ssl"`
 	Subdomains         []string `json:"subdomains"`
 	SubdomainUsage     string   `json:"subdomain"`
 	Suspended          string   `json:"suspended"`
 	Username           string   `json:"username"`
 }
 
-// translate returns an rawDomain object with DA's original JSON fields and data types
+// translate returns an rawDomain object with DA's original JSON fields and data types.
 func (d *Domain) translate() (domain rawDomain) {
 	domain = rawDomain{
-		Active:             reverseParseYesNo(d.Active, true),
+		Active:             reverseParseYesNo(d.Active),
 		BandwidthQuota:     reverseParseNum(d.BandwidthQuota, false),
 		BandwidthUsage:     reverseParseNum(d.BandwidthUsage, false),
-		CgiEnabled:         reverseParseOnOff(d.CgiEnabled, false),
-		DefaultDomain:      reverseParseYesNo(d.DefaultDomain, true),
+		CGIEnabled:         reverseParseOnOff(d.CGIEnabled),
+		DefaultDomain:      reverseParseYesNo(d.DefaultDomain),
 		DiskQuota:          reverseParseNum(d.DiskQuota, false),
 		DiskUsage:          reverseParseNum(d.DiskUsage, true),
 		Domain:             d.Domain,
-		IpAddresses:        d.IPAddresses,
-		OpenBaseDirEnabled: reverseParseOnOff(d.OpenBaseDirEnabled, false),
-		PhpEnabled:         reverseParseOnOff(d.PhpEnabled, false),
-		SafeMode:           reverseParseOnOff(d.SafeMode, false),
-		SslEnabled:         reverseParseOnOff(d.SslEnabled, false),
+		IPAddresses:        d.IPAddresses,
+		OpenBaseDirEnabled: reverseParseOnOff(d.OpenBaseDirEnabled),
+		PHPEnabled:         reverseParseOnOff(d.PHPEnabled),
+		SafeMode:           reverseParseOnOff(d.SafeMode),
+		SSLEnabled:         reverseParseOnOff(d.SSLEnabled),
 		Subdomains:         d.Subdomains,
 		SubdomainUsage:     strconv.Itoa(d.SubdomainUsage),
-		Suspended:          reverseParseYesNo(d.Suspended, true),
+		Suspended:          reverseParseYesNo(d.Suspended),
 		Username:           d.Username,
 	}
 
@@ -67,38 +67,38 @@ func (d *Domain) translate() (domain rawDomain) {
 		domain.ExtraData.ModSecurityEnabled = "yes"
 	}
 
-	domain.ExtraData.PhpSelectorEnabled = reverseParseYesNo(d.PhpSelectorEnabled, true)
+	domain.ExtraData.PHPSelectorEnabled = reverseParseYesNo(d.PHPSelectorEnabled)
 
 	return domain
 }
 
-// translate returns a Domain object
+// translate returns a Domain object.
 func (d *rawDomain) translate() (domain Domain) {
 	domain = Domain{
 		Active:             parseOnOff(d.Active),
 		BandwidthQuota:     parseNum(d.BandwidthQuota),
 		BandwidthUsage:     parseNum(d.BandwidthUsage),
-		CgiEnabled:         parseOnOff(d.CgiEnabled),
+		CGIEnabled:         parseOnOff(d.CGIEnabled),
 		DefaultDomain:      parseOnOff(d.DefaultDomain),
 		DiskQuota:          parseNum(d.DiskQuota),
 		DiskUsage:          parseNum(d.DiskUsage),
 		Domain:             d.Domain,
-		IPAddresses:        d.IpAddresses,
+		IPAddresses:        d.IPAddresses,
 		ModSecurityEnabled: parseOnOff(d.ExtraData.ModSecurityEnabled),
 		OpenBaseDirEnabled: parseOnOff(d.OpenBaseDirEnabled),
-		PhpEnabled:         parseOnOff(d.PhpEnabled),
-		PhpSelectorEnabled: parseOnOff(d.ExtraData.PhpSelectorEnabled),
+		PHPEnabled:         parseOnOff(d.PHPEnabled),
+		PHPSelectorEnabled: parseOnOff(d.ExtraData.PHPSelectorEnabled),
 		SafeMode:           parseOnOff(d.SafeMode),
-		SslEnabled:         parseOnOff(d.SslEnabled),
+		SSLEnabled:         parseOnOff(d.SSLEnabled),
 		Subdomains:         d.Subdomains,
 		SubdomainUsage:     cast.ToInt(d.SubdomainUsage),
 		Suspended:          parseOnOff(d.Suspended),
 		Username:           d.Username,
 	}
 
-	for _, option := range d.ExtraData.PhpOptions {
+	for _, option := range d.ExtraData.PHPOptions {
 		if option.Selected == "yes" {
-			domain.PhpVersion = option.Version
+			domain.PHPVersion = option.Version
 		}
 	}
 

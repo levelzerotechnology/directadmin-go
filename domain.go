@@ -15,7 +15,7 @@ type Domain struct {
 	Active             bool     `json:"active" yaml:"active"`
 	BandwidthQuota     int      `json:"bandwidthQuota" yaml:"bandwidthQuota"`
 	BandwidthUsage     int      `json:"bandwidthUsage" yaml:"bandwidthUsage"`
-	CgiEnabled         bool     `json:"cgiEnabled" yaml:"cgiEnabled"`
+	CGIEnabled         bool     `json:"cgiEnabled" yaml:"cgiEnabled"`
 	DefaultDomain      bool     `json:"defaultDomain" yaml:"defaultDomain"`
 	DiskQuota          int      `json:"diskQuota" yaml:"diskQuota"`
 	DiskUsage          int      `json:"diskUsage" yaml:"diskUsage"`
@@ -23,11 +23,11 @@ type Domain struct {
 	IPAddresses        []string `json:"ipAddresses" yaml:"ipAddresses"`
 	ModSecurityEnabled bool     `json:"modSecurityEnabled" yaml:"modSecurityEnabled"`
 	OpenBaseDirEnabled bool     `json:"openBaseDirEnabled" yaml:"openBaseDirEnabled"`
-	PhpEnabled         bool     `json:"phpEnabled" yaml:"phpEnabled"`
-	PhpSelectorEnabled bool     `json:"phpSelectorEnabled" yaml:"phpSelectorEnabled"`
-	PhpVersion         string   `json:"phpVersion" yaml:"phpVersion"`
+	PHPEnabled         bool     `json:"phpEnabled" yaml:"phpEnabled"`
+	PHPSelectorEnabled bool     `json:"phpSelectorEnabled" yaml:"phpSelectorEnabled"`
+	PHPVersion         string   `json:"phpVersion" yaml:"phpVersion"`
 	SafeMode           bool     `json:"safeMode" yaml:"safeMode"`
-	SslEnabled         bool     `json:"sslEnabled" yaml:"sslEnabled"`
+	SSLEnabled         bool     `json:"sslEnabled" yaml:"sslEnabled"`
 	Subdomains         []string `json:"subdomains" yaml:"subdomains"`
 	SubdomainUsage     int      `json:"subdomainUsage" yaml:"subdomainUsage"`
 	Suspended          bool     `json:"suspended" yaml:"suspended"`
@@ -51,7 +51,7 @@ func (c *UserContext) AddDomainIP(domain string, ip string, createDNSRecords boo
 	}
 
 	if _, err := c.makeRequestOld(http.MethodPost, "DOMAIN", body, &response); err != nil {
-		return fmt.Errorf("failed to add IP to domain: %v", err)
+		return fmt.Errorf("failed to add IP to domain: %w", err)
 	}
 
 	if response.Success != "IP Added" {
@@ -61,7 +61,7 @@ func (c *UserContext) AddDomainIP(domain string, ip string, createDNSRecords boo
 	return nil
 }
 
-// CheckDomainExists (user) checks if the given domain exists on the server
+// CheckDomainExists (user) checks if the given domain exists on the server.
 func (c *UserContext) CheckDomainExists(domain string) error {
 	return c.checkObjectExists(url.Values{
 		"type":  {"domain"},
@@ -69,7 +69,7 @@ func (c *UserContext) CheckDomainExists(domain string) error {
 	})
 }
 
-// CreateDomain (user) creates the provided domain for the session user
+// CreateDomain (user) creates the provided domain for the session user.
 func (c *UserContext) CreateDomain(domain Domain) error {
 	var response apiGenericResponse
 
@@ -79,9 +79,9 @@ func (c *UserContext) CreateDomain(domain Domain) error {
 	body.Set("domain", rawDomainData.Domain)
 	body.Set("ubandwidth", rawDomainData.BandwidthQuota)
 	body.Set("uquota", rawDomainData.DiskQuota)
-	body.Set("cgi", rawDomainData.CgiEnabled)
-	body.Set("php", rawDomainData.PhpEnabled)
-	body.Set("ssl", rawDomainData.SslEnabled)
+	body.Set("cgi", rawDomainData.CGIEnabled)
+	body.Set("php", rawDomainData.PHPEnabled)
+	body.Set("ssl", rawDomainData.SSLEnabled)
 
 	if _, err := c.makeRequestOld(http.MethodPost, "API_DOMAIN?action=create", body, &response); err != nil {
 		return err
@@ -97,24 +97,24 @@ func (c *UserContext) CreateDomain(domain Domain) error {
 				Domain:    domain.Domain,
 				Subdomain: subdomain,
 			}); err != nil {
-				return fmt.Errorf("successfully created domain, but failed to create subdomain %v: %v", subdomain, err)
+				return fmt.Errorf("successfully created domain, but failed to create subdomain %v: %w", subdomain, err)
 			}
 		}
 	}
 
-	// cache domain
+	// Cache the domain.
 	if c.api.cacheEnabled {
-		go func(domainToCache Domain) {
+		go func() {
 			c.api.cache.domainsMutex.Lock()
 			c.api.cache.domains[domain.Domain] = domain
 			c.api.cache.domainsMutex.Unlock()
-		}(domain)
+		}()
 	}
 
 	return nil
 }
 
-// DeleteDomains (user) deletes all the specified domains for the session user
+// DeleteDomains (user) deletes all the specified domains for the session user.
 func (c *UserContext) DeleteDomains(deleteData bool, domains ...string) error {
 	var response apiGenericResponse
 
@@ -153,7 +153,7 @@ func (c *UserContext) DeleteDomains(deleteData bool, domains ...string) error {
 	return nil
 }
 
-// GetDomain (user) returns the single specified domain
+// GetDomain (user) returns the single specified domain.
 func (c *UserContext) GetDomain(domainName string) (Domain, error) {
 	// check if domain is in cache
 	if c.api.cacheEnabled {
@@ -188,13 +188,13 @@ func (c *UserContext) GetDomain(domainName string) (Domain, error) {
 	return rawDomainData.translate(), nil
 }
 
-// GetDomains (user) returns the session user's domains
+// GetDomains (user) returns the session user's domains.
 func (c *UserContext) GetDomains() ([]Domain, error) {
 	var domains []Domain
 	var rawDomains map[string]rawDomain
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_ADDITIONAL_DOMAINS?bytes=yes", nil, &rawDomains); err != nil {
-		return nil, fmt.Errorf("failed to get domains: %v", err)
+		return nil, fmt.Errorf("failed to get domains: %w", err)
 	}
 
 	if len(rawDomains) == 0 {
@@ -203,17 +203,17 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 
 	// DA doesn't return the PHP version or mod security's status when returning all the domains, so we have to re-call
 	// the endpoint for each domain. We can't call CMD_API_SHOW_DOMAINS instead in the call above because DA returns
-	// different quota data for some reason when viewing a single domain
+	// different quota data for some reason when viewing a single domain.
 	var errs []error
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	wg.Add(len(rawDomains))
 
 	for _, rawDomainData := range rawDomains {
-		// convert to local variable to prevent variable overwrite
+		// Convert to a local variable to prevent variable overwrite.
 		domainToProcess := rawDomainData
 
-		// check if domainToProcess is in cache
+		// Check if domainToProcess is in the cache.
 		if c.api.cacheEnabled {
 			if cachedDomain, ok := c.api.cache.domains[domainToProcess.Domain]; ok {
 				mu.Lock()
@@ -253,7 +253,7 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 			domains = append(domains, rawDomainData.translate())
 			mu.Unlock()
 
-			// cache domain
+			// Cache domain.
 			if c.api.cacheEnabled {
 				go func(domainToCache Domain) {
 					c.api.cache.domainsMutex.Lock()
@@ -285,7 +285,7 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 	return domains, nil
 }
 
-// ListDomains (user) returns an array of all domains for the session user
+// ListDomains (user) returns an array of all domains for the session user.
 func (c *UserContext) ListDomains() (domainList []string, err error) {
 	if _, err = c.makeRequestOld(http.MethodGet, "API_SHOW_DOMAINS?bytes=yes", nil, &domainList); err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func (c *UserContext) ListDomains() (domainList []string, err error) {
 	return domainList, nil
 }
 
-// SetDefaultDomain (user) sets the default domain for the session user
+// SetDefaultDomain (user) sets the default domain for the session user.
 func (c *UserContext) SetDefaultDomain(domain string) error {
 	var response apiGenericResponse
 
@@ -313,7 +313,7 @@ func (c *UserContext) SetDefaultDomain(domain string) error {
 	return nil
 }
 
-// UpdateDomain (user) accepts a Domain object and updates the version on DA with it
+// UpdateDomain (user) accepts a Domain object and updates the version on DA with it.
 func (c *UserContext) UpdateDomain(domain Domain) error {
 	var response apiGenericResponse
 
@@ -323,9 +323,9 @@ func (c *UserContext) UpdateDomain(domain Domain) error {
 	body.Set("domain", rawDomainData.Domain)
 	body.Set("ubandwidth", rawDomainData.BandwidthQuota)
 	body.Set("uquota", rawDomainData.DiskQuota)
-	body.Set("cgi", rawDomainData.CgiEnabled)
-	body.Set("php", rawDomainData.PhpEnabled)
-	body.Set("ssl", rawDomainData.SslEnabled)
+	body.Set("cgi", rawDomainData.CGIEnabled)
+	body.Set("php", rawDomainData.PHPEnabled)
+	body.Set("ssl", rawDomainData.SSLEnabled)
 
 	if _, err := c.makeRequestOld(http.MethodPost, "API_DOMAIN?action=modify", body, &response); err != nil {
 		return err

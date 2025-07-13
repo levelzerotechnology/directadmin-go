@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 )
 
 const (
-	DatabaseFormatGz  = DatabaseFormat("gz")
-	DatabaseFormatSql = DatabaseFormat("sql")
+	DatabaseFormatGZ  = DatabaseFormat("gz")
+	DatabaseFormatSQL = DatabaseFormat("sql")
 )
 
 type (
@@ -36,7 +35,7 @@ type (
 		Command  string `json:"command"`
 		Database string `json:"database"`
 		Host     string `json:"host"`
-		Id       int    `json:"id"`
+		ID       int    `json:"id"`
 		Info     string `json:"info"`
 		State    string `json:"state"`
 		Time     int    `json:"time"`
@@ -56,6 +55,7 @@ type (
 	}
 )
 
+// CreateDatabase (user) creates a new database.
 func (c *UserContext) CreateDatabase(database *Database) error {
 	database.Name = c.addUsernamePrefix(database.Name)
 
@@ -66,6 +66,7 @@ func (c *UserContext) CreateDatabase(database *Database) error {
 	return nil
 }
 
+// CreateDatabaseWithUser (user) creates a new database and database user.
 func (c *UserContext) CreateDatabaseWithUser(database *DatabaseWithUser) error {
 	database.Name = c.addUsernamePrefix(database.Name)
 	database.User = c.addUsernamePrefix(database.User)
@@ -77,6 +78,8 @@ func (c *UserContext) CreateDatabaseWithUser(database *DatabaseWithUser) error {
 	return nil
 }
 
+// CreateDatabaseUser (user) creates a new database user with the specified username, password, and host patterns.
+// It prepends the username prefix if the caller didn't do it.
 func (c *UserContext) CreateDatabaseUser(databaseUser *DatabaseUser) error {
 	databaseUser.User = c.addUsernamePrefix(databaseUser.User)
 
@@ -87,6 +90,7 @@ func (c *UserContext) CreateDatabaseUser(databaseUser *DatabaseUser) error {
 	return nil
 }
 
+// DeleteDatabase (user) removes a database identified by databaseName after applying the username prefix.
 func (c *UserContext) DeleteDatabase(databaseName string) error {
 	databaseName = c.addUsernamePrefix(databaseName)
 
@@ -97,7 +101,10 @@ func (c *UserContext) DeleteDatabase(databaseName string) error {
 	return nil
 }
 
-func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat, filePath string) error {
+// DownloadDatabase (user) retrieves a database by name and format from the server and returns its data as a byte slice.
+// The method appends the username and ensures the file uses a valid DatabaseFormat (gz or sql).
+// Returns an error if the format is invalid or the download request fails.
+func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat) ([]byte, error) {
 	name = name + "." + string(format)
 
 	if !strings.Contains(name, c.GetMyUsername()+"_") {
@@ -105,33 +112,27 @@ func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat, fileP
 	}
 
 	switch format {
-	case DatabaseFormatGz, DatabaseFormatSql:
+	case DatabaseFormatGZ, DatabaseFormatSQL:
 		break
 	default:
-		return fmt.Errorf("invalid database format: %v", format)
+		return nil, fmt.Errorf("invalid database format: %v", format)
 	}
 
-	var file *os.File
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		file, err = os.Create(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to create file: %v", err)
-		}
-	}
-
-	resp, err := c.makeRequestOld(http.MethodPost, "DB/"+name, nil, nil)
+	response, err := c.makeRequestOld(http.MethodPost, "DB/"+name, nil, nil)
 	if err != nil {
-		return fmt.Errorf("failed to download database: %v", err)
+		return nil, fmt.Errorf("failed to download database: %w", err)
 	}
 
-	if _, err = file.Write(resp); err != nil {
-		return fmt.Errorf("error writing to file: %w", err)
-	}
-
-	return nil
+	return response, nil
 }
 
-// ExportDatabase (user) returns an export of the given database
+func (c *UserContext) DownloadDatabaseToDisk(name string, format DatabaseFormat, outputPath string) error {
+	return writeToDisk(outputPath, func() ([]byte, error) {
+		return c.DownloadDatabase(name, format)
+	})
+}
+
+// ExportDatabase (user) returns an export of the given database.
 func (c *UserContext) ExportDatabase(databaseName string, gzip bool) ([]byte, error) {
 	databaseName = c.addUsernamePrefix(databaseName)
 
@@ -143,7 +144,7 @@ func (c *UserContext) ExportDatabase(databaseName string, gzip bool) ([]byte, er
 	return export, nil
 }
 
-// GetDatabase (user) returns the given database
+// GetDatabase (user) returns the given database.
 func (c *UserContext) GetDatabase(databaseName string) (*Database, error) {
 	databaseName = c.addUsernamePrefix(databaseName)
 
@@ -156,7 +157,7 @@ func (c *UserContext) GetDatabase(databaseName string) (*Database, error) {
 	return &database, nil
 }
 
-// GetDatabases (user) returns an array of the session user's databases
+// GetDatabases (user) returns an array of the session user's databases.
 func (c *UserContext) GetDatabases() ([]*Database, error) {
 	var databases []*Database
 
@@ -167,7 +168,7 @@ func (c *UserContext) GetDatabases() ([]*Database, error) {
 	return databases, nil
 }
 
-// GetDatabaseProcesses (admin) returns an array of current database processes
+// GetDatabaseProcesses (admin) returns an array of current database processes.
 func (c *UserContext) GetDatabaseProcesses() ([]*DatabaseProcess, error) {
 	var databaseProcesses []*DatabaseProcess
 
@@ -178,7 +179,7 @@ func (c *UserContext) GetDatabaseProcesses() ([]*DatabaseProcess, error) {
 	return databaseProcesses, nil
 }
 
-// ImportDatabase (user) imports the given database export into the given database
+// ImportDatabase (user) imports the given database export into the given database.
 func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase bool, sql []byte) error {
 	databaseName = c.addUsernamePrefix(databaseName)
 
@@ -205,7 +206,7 @@ func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase 
 	return nil
 }
 
-// UpdateDatabaseUserHosts (user) updates the given database user's hosts
+// UpdateDatabaseUserHosts (user) updates the given database user's hosts.
 func (c *UserContext) UpdateDatabaseUserHosts(username string, hosts []string) error {
 	username = c.addUsernamePrefix(username)
 
@@ -216,7 +217,7 @@ func (c *UserContext) UpdateDatabaseUserHosts(username string, hosts []string) e
 	return nil
 }
 
-// UpdateDatabaseUserPassword (user) updates the given database user's password
+// UpdateDatabaseUserPassword (user) updates the given database user's password.
 func (c *UserContext) UpdateDatabaseUserPassword(username string, password string) error {
 	username = c.addUsernamePrefix(username)
 

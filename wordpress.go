@@ -1,6 +1,7 @@
 package directadmin
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,10 +15,10 @@ type (
 		AdminEmail string `json:"adminEmail" yaml:"adminEmail"`
 		AdminName  string `json:"adminName" yaml:"adminName"`
 		AdminPass  string `json:"adminPass" yaml:"adminPass"`
-		DbName     string `json:"dbName" yaml:"dbName"`
-		DbPass     string `json:"dbPass" yaml:"dbPass"`
-		DbPrefix   string `json:"dbPrefix" yaml:"dbPrefix"`
-		DbUser     string `json:"dbUser" yaml:"dbUser"`
+		DBName     string `json:"dbName" yaml:"dbName"`
+		DBPass     string `json:"dbPass" yaml:"dbPass"`
+		DBPrefix   string `json:"dbPrefix" yaml:"dbPrefix"`
+		DBUser     string `json:"dbUser" yaml:"dbUser"`
 		FilePath   string `json:"filePath" yaml:"filePath"`
 		Title      string `json:"title" yaml:"title"`
 	}
@@ -33,9 +34,9 @@ type (
 	WordPressLocation struct {
 		FilePath  string `json:"filePath"`
 		Host      string `json:"host"`
-		Id        string `json:"id"`
+		ID        string `json:"id"`
 		WebPath   string `json:"webPath"`
-		Wordpress struct {
+		WordPress struct {
 			AutoUpdateMajor bool   `json:"autoUpdateMajor"`
 			AutoUpdateMinor bool   `json:"autoUpdateMinor"`
 			Error           string `json:"error"`
@@ -47,7 +48,7 @@ type (
 	}
 
 	WordPressUser struct {
-		Id          int       `json:"id"`
+		ID          int       `json:"id"`
 		DisplayName string    `json:"displayName"`
 		Email       string    `json:"email"`
 		Login       string    `json:"login"`
@@ -56,20 +57,20 @@ type (
 	}
 )
 
-// ChangeWordPressUserPassword (user) changes the password of the given wordpress user.
-func (c *UserContext) ChangeWordPressUserPassword(locationId string, userId int, password string) error {
+// ChangeWordPressUserPassword (user) changes the password of the given WordPress user.
+func (c *UserContext) ChangeWordPressUserPassword(locationID string, userID int, password string) error {
 	var passwordObject struct {
 		Password string `json:"password"`
 	}
 
 	if password == "" {
-		return fmt.Errorf("password cannot be empty")
+		return errors.New("password cannot be empty")
 	}
 
 	passwordObject.Password = password
 
-	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/locations/"+locationId+"/users/"+cast.ToString(userId)+"/change-password", passwordObject, nil); err != nil {
-		return fmt.Errorf("failed to change wordpress user password: %v", err)
+	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/locations/"+locationID+"/users/"+cast.ToString(userID)+"/change-password", passwordObject, nil); err != nil {
+		return fmt.Errorf("failed to change wordpress user password: %w", err)
 	}
 
 	return nil
@@ -79,39 +80,39 @@ func (c *UserContext) CreateWordPressInstall(install WordPressInstall, createDat
 	if createDatabase {
 		if err := c.CreateDatabaseWithUser(&DatabaseWithUser{
 			Database: Database{
-				Name: install.DbName,
+				Name: install.DBName,
 			},
-			Password: install.DbPass,
-			User:     install.DbUser,
+			Password: install.DBPass,
+			User:     install.DBUser,
 		}); err != nil {
-			return fmt.Errorf("failed to create database: %v", err)
+			return fmt.Errorf("failed to create database: %w", err)
 		}
 	}
 
 	contextUsername := c.GetMyUsername()
 	dbPrefix := contextUsername + "_"
 
-	if !strings.Contains(install.DbName, dbPrefix) {
-		install.DbName = dbPrefix + install.DbName
+	if !strings.Contains(install.DBName, dbPrefix) {
+		install.DBName = dbPrefix + install.DBName
 	}
 
-	if !strings.Contains(install.DbUser, dbPrefix) {
-		install.DbUser = dbPrefix + install.DbUser
+	if !strings.Contains(install.DBUser, dbPrefix) {
+		install.DBUser = dbPrefix + install.DBUser
 	}
 
-	if !strings.Contains(install.DbPrefix, "_") {
-		install.DbPrefix = install.DbPrefix + "_"
+	if !strings.Contains(install.DBPrefix, "_") {
+		install.DBPrefix += "_"
 	}
 
-	// remove / from the beginning of FilePath if it's there
+	// Remove / from the beginning of FilePath if it's there.
 	if install.FilePath[0] == '/' {
 		install.FilePath = install.FilePath[1:]
 	}
 
 	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/install", install, nil); err != nil {
 		if createDatabase {
-			if dbErr := c.DeleteDatabase(install.DbName); dbErr != nil {
-				err = fmt.Errorf("%v: %v", dbErr, err)
+			if dbErr := c.DeleteDatabase(install.DBName); dbErr != nil {
+				err = fmt.Errorf("%w: %w", dbErr, err)
 			}
 		}
 		return err
@@ -120,7 +121,7 @@ func (c *UserContext) CreateWordPressInstall(install WordPressInstall, createDat
 	return nil
 }
 
-// CreateWordPressInstallQuick (user) creates a new wordpress install and automatically creates a database
+// CreateWordPressInstallQuick (user) creates a new wordpress install and automatically creates a database.
 func (c *UserContext) CreateWordPressInstallQuick(install WordPressInstallQuick) error {
 	// remove / from the beginning of FilePath if it's there
 	if install.FilePath[0] == '/' {
@@ -146,29 +147,29 @@ func (c *UserContext) GetWordPressInstalls() ([]*WordPressLocation, error) {
 	var wordpressInstalls []*WordPressLocation
 
 	if _, err := c.makeRequestNew(http.MethodGet, "wordpress/locations", nil, &wordpressInstalls); err != nil {
-		return nil, fmt.Errorf("failed to get wordpress installs: %v", err)
+		return nil, fmt.Errorf("failed to get wordpress installs: %w", err)
 	}
 
 	return wordpressInstalls, nil
 }
 
-func (c *UserContext) GetWordPressSSOLink(locationId string, userId int) (string, error) {
+func (c *UserContext) GetWordPressSSOLink(locationID string, userID int) (string, error) {
 	var ssoObject struct {
 		URL string `json:"url"`
 	}
 
-	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/locations/"+locationId+"/users/"+cast.ToString(userId)+"/sso-login", nil, &ssoObject); err != nil {
-		return "", fmt.Errorf("failed to get wordpress installs: %v", err)
+	if _, err := c.makeRequestNew(http.MethodPost, "wordpress/locations/"+locationID+"/users/"+cast.ToString(userID)+"/sso-login", nil, &ssoObject); err != nil {
+		return "", fmt.Errorf("failed to get wordpress installs: %w", err)
 	}
 
 	return ssoObject.URL, nil
 }
 
-func (c *UserContext) GetWordPressUsers(locationId string) ([]*WordPressUser, error) {
+func (c *UserContext) GetWordPressUsers(locationID string) ([]*WordPressUser, error) {
 	var wordpressUsers []*WordPressUser
 
-	if _, err := c.makeRequestNew(http.MethodGet, "wordpress/locations/"+locationId+"/users", nil, &wordpressUsers); err != nil {
-		return nil, fmt.Errorf("failed to get wordpress users: %v", err)
+	if _, err := c.makeRequestNew(http.MethodGet, "wordpress/locations/"+locationID+"/users", nil, &wordpressUsers); err != nil {
+		return nil, fmt.Errorf("failed to get wordpress users: %w", err)
 	}
 
 	return wordpressUsers, nil

@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-// IssueSSL (user) requests a lets encrypt certificate for the given hostnames
+// IssueSSL (user) requests a lets encrypt certificate for the given hostnames.
 func (c *UserContext) IssueSSL(domain string, hostnamesToCertify ...string) error {
 	var response apiGenericResponse
 

@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// debugBodyLimit caps the debug body bytes to 32KB.
+const debugBodyLimit = 32768
+
 type httpDebug struct {
 	Body          string
 	BodyTruncated bool
@@ -30,7 +33,7 @@ func (c *UserContext) getRequestURLOld(endpoint string) string {
 	return fmt.Sprintf("%s/CMD_%s", c.api.url, endpoint)
 }
 
-// makeRequest is the underlying function for HTTP requests. It handles debugging statements, and simple error handling
+// makeRequest is the underlying function for HTTP requests. It handles debugging statements, and simple error handling.
 func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 	var debugCookies []string
 
@@ -86,9 +89,9 @@ func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 		}
 
 		if c.api.debug {
-			if len(responseBytes) > 32768 {
+			if len(responseBytes) > debugBodyLimit {
 				debug.BodyTruncated = true
-				debug.Body = string(responseBytes[:32768])
+				debug.Body = string(responseBytes[:debugBodyLimit])
 			} else {
 				debug.Body = string(responseBytes)
 			}
@@ -102,7 +105,7 @@ func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 	return responseBytes, nil
 }
 
-// makeRequestNew supports DirectAdmin's new API
+// makeRequestNew supports DirectAdmin's new API.
 func (c *UserContext) makeRequestNew(method string, endpoint string, body any, object any) ([]byte, error) {
 	var bodyBytes []byte
 
@@ -140,7 +143,7 @@ func (c *UserContext) makeRequestNew(method string, endpoint string, body any, o
 	return resp, nil
 }
 
-// makeRequestOld supports DirectAdmin's old API
+// makeRequestOld supports DirectAdmin's old API.
 func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Values, object any) ([]byte, error) {
 	req, err := http.NewRequest(strings.ToUpper(method), c.getRequestURLOld(endpoint), strings.NewReader(body.Encode()))
 	if err != nil {
@@ -179,7 +182,7 @@ func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Va
 	return resp, nil
 }
 
-// uploadFile functions for either the old or new DA API
+// uploadFile functions for either the old or new DA API.
 func (c *UserContext) uploadFile(method string, endpoint string, data []byte, object any, contentType string) ([]byte, error) {
 	req, err := http.NewRequest(strings.ToUpper(method), c.api.url+endpoint, bytes.NewBuffer(data))
 	if err != nil {
@@ -197,7 +200,7 @@ func (c *UserContext) uploadFile(method string, endpoint string, data []byte, ob
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
 
-	if resp != nil && len(resp) > 0 && object != nil {
+	if len(resp) > 0 && object != nil {
 		if err = json.Unmarshal(resp, &object); err != nil {
 			return nil, fmt.Errorf("error unmarshalling response: %w", err)
 		}

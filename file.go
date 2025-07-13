@@ -2,12 +2,14 @@ package directadmin
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -31,6 +33,33 @@ type FileMetadata struct {
 	User     string `json:"user"`
 }
 
+// CreateArchive (user) creates a zip of the given files on the server.
+//
+// The destination path is relative by default.
+func (c *UserContext) CreateArchive(destinationPath string, sources ...string) error {
+	if destinationPath == "" || len(sources) == 0 {
+		return errors.New("no destination path or sources provided")
+	}
+
+	if !strings.HasSuffix(destinationPath, ".zip") {
+		destinationPath += ".zip"
+	}
+
+	body := struct {
+		Destination string   `json:"destination"`
+		Sources     []string `json:"sources"`
+	}{
+		Destination: destinationPath,
+		Sources:     sources,
+	}
+
+	if _, err := c.makeRequestNew(http.MethodPost, "filemanager-actions/create-archive", body, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CreateDirectory (user) creates the given path, including any missing parent directories.
 func (c *UserContext) CreateDirectory(path string) error {
 	body := map[string]string{
@@ -47,7 +76,7 @@ func (c *UserContext) CreateDirectory(path string) error {
 // DeleteFiles (user) deletes all the specified files for the session user.
 func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 	if len(files) == 0 {
-		return fmt.Errorf("no files provided")
+		return errors.New("no files provided")
 	}
 
 	normalized := make([]string, len(files))
@@ -86,22 +115,15 @@ func (c *UserContext) DownloadFile(filePath string) ([]byte, error) {
 
 // DownloadFileToDisk (user) wraps DownloadFile and writes the output to the given path.
 func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) error {
-	if outputPath == "" {
-		return fmt.Errorf("no file path provided")
-	}
-
-	response, err := c.DownloadFile(filePath)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(outputPath, response, 0o644)
+	return writeToDisk(outputPath, func() ([]byte, error) {
+		return c.DownloadFile(filePath)
+	})
 }
 
-// ExtractFile (user) unzips the given file path on the server.
-func (c *UserContext) ExtractFile(destinationDir string, source string, mergeAndOverwrite bool) error {
+// ExtractArchive (user) unzips the given file path on the server.
+func (c *UserContext) ExtractArchive(destinationDir string, source string, mergeAndOverwrite bool) error {
 	if destinationDir == "" || source == "" {
-		return fmt.Errorf("no destination directory or source provided")
+		return errors.New("no destination directory or source provided")
 	}
 
 	// Prepend / to the filePath if necessary.
@@ -161,7 +183,7 @@ func (c *UserContext) MovePath(source string, destination string, overwrite bool
 	return nil
 }
 
-// UploadFile uploads the provided byte data as a file for the session user
+// UploadFile uploads the provided byte data as a file for the session user.
 func (c *UserContext) UploadFile(uploadToPath string, fileData []byte, overwrite bool) error {
 	// Prepend / to uploadToPath if it doesn't exist.
 	if uploadToPath[0] != '/' {
@@ -199,7 +221,7 @@ func (c *UserContext) UploadFile(uploadToPath string, fileData []byte, overwrite
 
 // UploadFileFromDisk (user) uploads the provided file for the session user.
 //
-// Example: UploadFileFromDisk("/domains/domain.tld/public_html/file.zip", "file.zip")
+// Example: UploadFileFromDisk("/domains/domain.tld/public_html/file.zip", "file.zip").
 func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath string, overwrite bool) error {
 	var err error
 
@@ -220,4 +242,42 @@ func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath stri
 	}
 
 	return c.UploadFile(uploadToPath, fileData, overwrite)
+}
+
+// writeToDisk wraps a function that returns data and writes the output to the given path.
+// It handles file creation, cleanup on failure, and proper error handling.
+func writeToDisk(outputPath string, dataFunc func() ([]byte, error)) error {
+	if outputPath == "" {
+		return errors.New("no file path provided")
+	}
+
+	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
+		return fmt.Errorf("file already exists: %s", outputPath)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer file.Close()
+
+	defer func() {
+		if err != nil {
+			fileRemoveErr := os.Remove(outputPath)
+			if fileRemoveErr != nil {
+				err = fmt.Errorf("%w: %w", err, fileRemoveErr)
+			}
+		}
+	}()
+
+	data, err := dataFunc()
+	if err != nil {
+		return err
+	}
+
+	if _, err = file.Write(data); err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
+	}
+
+	return nil
 }

@@ -11,16 +11,18 @@ import (
 	"github.com/spf13/cast"
 )
 
-// Reseller inherits User
-type Reseller struct {
-	User
-}
+type (
+	// Reseller inherits User.
+	Reseller struct {
+		User
+	}
 
-type ResellerContext struct {
-	UserContext
-}
+	ResellerContext struct {
+		UserContext
+	}
+)
 
-// CheckUserExists (reseller) checks if the given user exists
+// CheckUserExists (reseller) checks if the given user exists.
 func (c *ResellerContext) CheckUserExists(username string) error {
 	return c.checkObjectExists(url.Values{
 		"type":  {"username"},
@@ -38,7 +40,7 @@ func (c *ResellerContext) AddUserIP(username string, ip string) error {
 	body.Set("user", username)
 
 	if _, err := c.makeRequestOld(http.MethodPost, "MODIFY_USER", body, &response); err != nil {
-		return fmt.Errorf("failed to add IP to user account: %v", err)
+		return fmt.Errorf("failed to add IP to user account: %w", err)
 	}
 
 	if response.Success != "IP Added" {
@@ -50,8 +52,8 @@ func (c *ResellerContext) AddUserIP(username string, ip string) error {
 
 // CreateUser (reseller) create a user.
 //
-// The following fields must be populated: Domain, Email, IPAddresses, Package, Username
-func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser bool, customPackage *Package) error {
+// The following fields must be populated: Domain, Email, IPAddresses, Package, Username.
+func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser bool) error {
 	var response apiGenericResponse
 
 	body := url.Values{}
@@ -72,7 +74,7 @@ func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser
 	}
 
 	if _, err := c.makeRequestOld(http.MethodPost, "API_ACCOUNT_USER?action=create", body, &response); err != nil {
-		return fmt.Errorf("failed to create user account: %v", err)
+		return fmt.Errorf("failed to create user account: %w", err)
 	}
 
 	if response.Success != "User "+user.Username+" created" {
@@ -82,7 +84,7 @@ func (c *ResellerContext) CreateUser(user UserConfig, password string, emailUser
 	return nil
 }
 
-// DeleteUsers (reseller) deletes all the users associated with the given usernames
+// DeleteUsers (reseller) deletes all the users associated with the given usernames.
 func (c *ResellerContext) DeleteUsers(usernames ...string) error {
 	var response apiGenericResponse
 
@@ -105,7 +107,7 @@ func (c *ResellerContext) DeleteUsers(usernames ...string) error {
 	return nil
 }
 
-// GetMyUsers (reseller) returns all users belonging to the session user
+// GetMyUsers (reseller) returns all users belonging to the session user.
 func (c *ResellerContext) GetMyUsers() ([]string, error) {
 	var users []string
 
@@ -121,7 +123,7 @@ func (c *ResellerContext) GetMyUsers() ([]string, error) {
 }
 
 // GetMyUsersWithData (reseller) returns all users belonging to the session user, along with the toggled data (config
-// and/or usage)
+// and/or usage).
 func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage bool) ([]User, error) {
 	var err error
 	var usernames []string
@@ -129,7 +131,7 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 
 	usernames, err = c.GetMyUsers()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get users: %v", err)
+		return nil, fmt.Errorf("failed to get users: %w", err)
 	}
 
 	var errs []error
@@ -138,7 +140,7 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 	wg.Add(len(usernames))
 
 	for _, username := range usernames {
-		// convert to local variable to prevent variable overwrite
+		// Convert to a local variable to prevent variable overwrite.
 		userToProcess := username
 
 		go func(username string) {
@@ -150,7 +152,7 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 				config, err := c.GetUserConfig(username)
 				if err != nil {
 					mu.Lock()
-					errs = append(errs, fmt.Errorf("failed to get user config for %v: %v", username, err))
+					errs = append(errs, fmt.Errorf("failed to get user config for %v: %w", username, err))
 					mu.Unlock()
 					return
 				}
@@ -162,7 +164,7 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 				usage, err := c.GetUserUsage(username)
 				if err != nil {
 					mu.Lock()
-					errs = append(errs, fmt.Errorf("failed to get user usage for %v: %v", username, err))
+					errs = append(errs, fmt.Errorf("failed to get user usage for %v: %w", username, err))
 					mu.Unlock()
 					return
 				}
@@ -197,7 +199,7 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 	return users, nil
 }
 
-// GetUserConfig (reseller) returns the given user's config
+// GetUserConfig (reseller) returns the given user's config.
 func (c *ResellerContext) GetUserConfig(username string) (*UserConfig, error) {
 	var config UserConfig
 

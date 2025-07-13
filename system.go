@@ -7,8 +7,8 @@ import (
 )
 
 type SysInfo struct {
-	CpuCount int `json:"cpuCount" yaml:"cpuCount"`
-	Cpus     map[string]struct {
+	CPUCount int `json:"cpuCount" yaml:"cpuCount"`
+	CPUs     map[string]struct {
 		MHz    float64 `json:"mhz"`
 		Model  string  `json:"model"`
 		Vendor string  `json:"vendor"`
@@ -54,7 +54,7 @@ type SysInfo struct {
 		MLocked           int `json:"mLocked"`
 		NfsUnstable       int `json:"nfsUnstable"`
 		PageTables        int `json:"pageTables"`
-		PerCpu            int `json:"perCpu"`
+		PerCPU            int `json:"perCpu"`
 		SReclaimable      int `json:"sReclaimable"`
 		SUnreclaim        int `json:"sUnreclaim"`
 		Shmem             int `json:"shmem"`
@@ -65,11 +65,11 @@ type SysInfo struct {
 		SwapFree          int `json:"swapFree"`
 		SwapTotal         int `json:"swapTotal"`
 		Unevictable       int `json:"snevictable"`
-		VmallocChunk      int `json:"vmallocChunk"`
-		VmallocTotal      int `json:"vmallocTotal"`
-		VmallocUsed       int `json:"vmallocUsed"`
+		VMAllocChunk      int `json:"vmallocChunk"`
+		VMAllocTotal      int `json:"vmallocTotal"`
+		VMAllocUsed       int `json:"vmallocUsed"`
 		Writeback         int `json:"writeback"`
-		WritebackTmp      int `json:"writebackTmp"`
+		WritebackTMP      int `json:"writebackTmp"`
 	} `json:"memory"`
 	Services map[string]struct {
 		Name    string `json:"name"`
@@ -100,13 +100,13 @@ func (c *UserContext) GetBasicSysInfo() (*BasicSysInfo, error) {
 	var basicSysInfo BasicSysInfo
 
 	if _, err := c.makeRequestNew(http.MethodGet, "info", nil, &basicSysInfo); err != nil {
-		return nil, fmt.Errorf("failed to get basic sys info: %v", err)
+		return nil, fmt.Errorf("failed to get basic sys info: %w", err)
 	}
 
 	return &basicSysInfo, nil
 }
 
-// func (c *UserContext) GetPhpVersions() (*SysInfo, error) {
+// func (c *UserContext) GetPHPVersions() (*SysInfo, error) {
 //	var rawSys rawSysInfo
 //	var sys SysInfo
 //

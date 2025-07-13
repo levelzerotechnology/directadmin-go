@@ -20,7 +20,7 @@ package main
 
 import (
 	"time"
-	
+
 	"github.com/levelzerotechnology/directadmin-go"
 )
 
@@ -42,6 +42,7 @@ func main() {
 
 	userCtx.User.Usage = *usage
 }
+
 ```
 
 From here, you can call user functions via `userCtx`.
@@ -51,21 +52,13 @@ For example, if you wanted to print each of your databases to your terminal:
 ```go
 dbs, err := userCtx.GetDatabases()
 if err != nil {
-log.Fatalln(err)
+    log.Fatalln(err)
 }
 
 for _, db := range dbs {
-fmt.Println(db.Name)
+    fmt.Println(db.Name)
 }
 ```
-
-## Roadmap
-
-- [ ] Cleanup repo structure (e.g. redis actions being within `admin.go` could go into a dedicated `redis.go` file
-  perhaps)
-- [ ] Explore DA's new API's update versions of old functions (e.g. user config/usage)
-- [ ] Implement testing for all functions
-- [ ] Reach stable v1.0
 
 ## License
 

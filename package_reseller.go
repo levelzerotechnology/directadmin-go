@@ -18,7 +18,7 @@ type ResellerPackage struct {
 	UserQuota       int  `json:"userQuota" url:"userQuota"`
 }
 
-// CreateResellerPackage (admin) creates the provided package
+// CreateResellerPackage (admin) creates the provided package.
 func (c *AdminContext) CreateResellerPackage(pack ResellerPackage) error {
 	var response apiGenericResponse
 
@@ -38,7 +38,7 @@ func (c *AdminContext) CreateResellerPackage(pack ResellerPackage) error {
 	return nil
 }
 
-// DeleteResellerPackages (admin) deletes all the specified packs for the session user
+// DeleteResellerPackages (admin) deletes all the specified packs for the session user.
 func (c *AdminContext) DeleteResellerPackages(packs ...string) error {
 	var response apiGenericResponse
 
@@ -61,12 +61,12 @@ func (c *AdminContext) DeleteResellerPackages(packs ...string) error {
 	return nil
 }
 
-// GetResellerPackage (admin) returns the single specified package
+// GetResellerPackage (admin) returns the single specified package.
 func (c *AdminContext) GetResellerPackage(packageName string) (ResellerPackage, error) {
 	var rawPack rawResellerPackage
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER?package="+packageName, nil, &rawPack); err != nil {
-		return ResellerPackage{}, fmt.Errorf("failed to get package info for %v: %v", packageName, err)
+		return ResellerPackage{}, fmt.Errorf("failed to get package info for %v: %w", packageName, err)
 	}
 
 	rawPack.Name = packageName
@@ -74,7 +74,7 @@ func (c *AdminContext) GetResellerPackage(packageName string) (ResellerPackage, 
 	return rawPack.translate(), nil
 }
 
-// GetResellerPackages (admin) returns all packages belonging to the session user
+// GetResellerPackages (admin) returns all packages belonging to the session user.
 func (c *AdminContext) GetResellerPackages() ([]ResellerPackage, error) {
 	var packageList []string
 	var packages []ResellerPackage
@@ -130,7 +130,7 @@ func (c *AdminContext) GetResellerPackages() ([]ResellerPackage, error) {
 	return packages, nil
 }
 
-// RenameResellerPackage (admin) renames the provided package
+// RenameResellerPackage (admin) renames the provided package.
 func (c *AdminContext) RenameResellerPackage(oldPackName string, newPackName string) error {
 	var response apiGenericResponse
 
@@ -149,7 +149,7 @@ func (c *AdminContext) RenameResellerPackage(oldPackName string, newPackName str
 	return nil
 }
 
-// UpdateResellerPackage (admin) accepts a Package object and updates the version on DA with it
+// UpdateResellerPackage (admin) accepts a Package object and updates the version on DA with it.
 func (c *AdminContext) UpdateResellerPackage(pack ResellerPackage) error {
 	// DA's update functionality is virtually identical to create, so we'll just use that
 	return c.CreateResellerPackage(pack)

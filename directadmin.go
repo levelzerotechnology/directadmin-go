@@ -29,7 +29,6 @@ type API struct {
 	debug        bool
 	httpClient   *http.Client
 	parsedURL    *url.URL
-	timeout      time.Duration
 	url          string
 }
 
@@ -46,12 +45,8 @@ type (
 	}
 )
 
-// TODO: implement caching layer which can be enabled/disabled on New() essentially, for domains it'd have
-// map[string]Domain at the API level then if any user called from the API, it would check the cache first would either
-// need a cache lifetime field added to domains, or add an additional map for lifetime checks.
-
-func New(serverUrl string, timeout time.Duration, cacheEnabled bool, debug bool) (*API, error) {
-	parsedURL, err := url.ParseRequestURI(serverUrl)
+func New(serverURL string, timeout time.Duration, cacheEnabled bool, debug bool) (*API, error) {
+	parsedURL, err := url.ParseRequestURI(serverURL)
 	if err != nil {
 		return nil, err
 	}

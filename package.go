@@ -13,11 +13,11 @@ import (
 )
 
 type Package struct {
-	AnonymousFtpEnabled     bool   `json:"anonymousFtpEnabled" yaml:"anonymousFtpEnabled"`
+	AnonymousFTPEnabled     bool   `json:"anonymousFTPEnabled" yaml:"anonymousFTPEnabled"`
 	BandwidthQuota          int    `json:"bandwidthQuota" yaml:"bandwidthQuota"`
-	CpuQuota                int    `json:"cpuQuota" yaml:"cpuQuota"`
+	CPUQuota                int    `json:"cpuQuota" yaml:"cpuQuota"`
 	CatchallEnabled         bool   `json:"catchallEnabled" yaml:"catchallEnabled"`
-	CgiEnabled              bool   `json:"cgiEnabled" yaml:"cgiEnabled"`
+	CGIEnabled              bool   `json:"cgiEnabled" yaml:"cgiEnabled"`
 	CronEnabled             bool   `json:"cronEnabled" yaml:"cronEnabled"`
 	DNSControlEnabled       bool   `json:"dnsControlEnabled" yaml:"dnsControlEnabled"`
 	DomainPointerQuota      int    `json:"domainPointerQuota" yaml:"domainPointerQuota"`
@@ -26,36 +26,36 @@ type Package struct {
 	EmailForwarderQuota     int    `json:"emailForwarderQuota" yaml:"emailForwarderQuota"`
 	EmailMailingListQuota   int    `json:"emailMailingListQuota" yaml:"emailMailingListQuota"`
 	EmailQuota              int    `json:"emailQuota" yaml:"emailQuota"`
-	FtpQuota                int    `json:"ftp" yaml:"ftpQuota"`
+	FTPQuota                int    `json:"ftp" yaml:"ftpQuota"`
 	GitEnabled              bool   `json:"gitEnabled" yaml:"gitEnabled"`
-	IoReadBandwidthMax      int    `json:"ioReadBandwidthMax" yaml:"ioReadBandwidthMax"`
-	IoReadIopsMax           int    `json:"ioReadIopsMax" yaml:"ioReadIopsMax"`
-	IoWriteBandwidthMax     int    `json:"ioWriteBandwidthMax" yaml:"ioWriteBandwidthMax"`
-	IoWriteIopsMax          int    `json:"ioWriteIopsMax" yaml:"ioWriteIopsMax"`
+	IOReadBandwidthMax      int    `json:"ioReadBandwidthMax" yaml:"ioReadBandwidthMax"`
+	IOReadIopsMax           int    `json:"ioReadIopsMax" yaml:"ioReadIopsMax"`
+	IOWriteBandwidthMax     int    `json:"ioWriteBandwidthMax" yaml:"ioWriteBandwidthMax"`
+	IOWriteIopsMax          int    `json:"ioWriteIopsMax" yaml:"ioWriteIopsMax"`
 	InodeQuota              int    `json:"inodeQuota" yaml:"inodeQuota"`
 	JailEnabled             bool   `json:"jailEnabled" yaml:"jailEnabled"`
 	Language                string `json:"language" yaml:"language"`
 	LoginKeysEnabled        bool   `json:"loginKeysEnabled" yaml:"loginKeysEnabled"`
 	MemoryHigh              int    `json:"memoryHigh" yaml:"memoryHigh"`
 	MemoryMax               int    `json:"memoryMax" yaml:"memoryMax"`
-	MysqlQuota              int    `json:"mysqlQuota" yaml:"mysqlQuota"`
+	MySQLQuota              int    `json:"mySQLQuota" yaml:"mySQLQuota"`
 	Name                    string `json:"name" yaml:"name"`
 	NginxEnabled            bool   `json:"nginxEnabled" yaml:"nginxEnabled"`
-	PhpEnabled              bool   `json:"phpEnabled" yaml:"phpEnabled"`
+	PHPEnabled              bool   `json:"phpEnabled" yaml:"phpEnabled"`
 	Quota                   int    `json:"quota" yaml:"quota"`
 	RedisEnabled            bool   `json:"redisEnabled" yaml:"redisEnabled"`
-	SshEnabled              bool   `json:"sshEnabled" yaml:"sshEnabled"`
+	SSHEnabled              bool   `json:"sshEnabled" yaml:"sshEnabled"`
 	Skin                    string `json:"skin" yaml:"skin"`
 	SpamAssassinEnabled     bool   `json:"spamAssassinEnabled" yaml:"spamAssassinEnabled"`
-	SslEnabled              bool   `json:"sslEnabled" yaml:"sslEnabled"`
+	SSLEnabled              bool   `json:"sslEnabled" yaml:"sslEnabled"`
 	SubdomainQuota          int    `json:"subdomainQuota" yaml:"subdomainQuota"`
 	SuspendAtLimitEnabled   bool   `json:"suspendAtLimitEnabled" yaml:"suspendAtLimitEnabled"`
 	SysInfoEnabled          bool   `json:"sysInfoEnabled" yaml:"sysInfoEnabled"`
 	TasksMax                int    `json:"tasksMax" yaml:"tasksMax"`
-	WordpressEnabled        bool   `json:"wordpressEnabled" yaml:"wordpressEnabled"`
+	WordPressEnabled        bool   `json:"wordpressEnabled" yaml:"wordpressEnabled"`
 }
 
-// CreatePackage (reseller) creates the provided package
+// CreatePackage (reseller) creates the provided package.
 func (c *ResellerContext) CreatePackage(pack Package) error {
 	var response apiGenericResponse
 
@@ -75,7 +75,7 @@ func (c *ResellerContext) CreatePackage(pack Package) error {
 	return nil
 }
 
-// DeletePackages (reseller) deletes all the specified packs for the session user
+// DeletePackages (reseller) deletes all the specified packs for the session user.
 func (c *ResellerContext) DeletePackages(packs ...string) error {
 	var response apiGenericResponse
 
@@ -98,12 +98,12 @@ func (c *ResellerContext) DeletePackages(packs ...string) error {
 	return nil
 }
 
-// GetPackage (reseller) returns the single specified package
+// GetPackage (reseller) returns the single specified package.
 func (c *ResellerContext) GetPackage(packageName string) (Package, error) {
 	var rawPack rawPackage
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER?package="+packageName, nil, &rawPack); err != nil {
-		return Package{}, fmt.Errorf("failed to get package info for %v: %v", packageName, err)
+		return Package{}, fmt.Errorf("failed to get package info for %v: %w", packageName, err)
 	}
 
 	rawPack.Name = packageName
@@ -111,7 +111,7 @@ func (c *ResellerContext) GetPackage(packageName string) (Package, error) {
 	return rawPack.translate(), nil
 }
 
-// GetPackages (reseller) returns all packages belonging to the session user
+// GetPackages (reseller) returns all packages belonging to the session user.
 func (c *ResellerContext) GetPackages() ([]Package, error) {
 	var packageList []string
 	var packages []Package
@@ -126,7 +126,7 @@ func (c *ResellerContext) GetPackages() ([]Package, error) {
 	wg.Add(len(packageList))
 
 	for _, packageName := range packageList {
-		// convert to local variable to prevent variable overwrite
+		// Convert to local variable to prevent variable overwrite.
 		packageToProcess := packageName
 
 		go func(packageName string) {
@@ -167,7 +167,7 @@ func (c *ResellerContext) GetPackages() ([]Package, error) {
 	return packages, nil
 }
 
-// RenamePackage (reseller) renames the provided package
+// RenamePackage (reseller) renames the provided package.
 func (c *ResellerContext) RenamePackage(oldPackName string, newPackName string) error {
 	var response apiGenericResponse
 
@@ -186,8 +186,8 @@ func (c *ResellerContext) RenamePackage(oldPackName string, newPackName string) 
 	return nil
 }
 
-// UpdatePackage (reseller) accepts a Package object and updates the version on DA with it
+// UpdatePackage (reseller) accepts a Package object and updates the version on DA with it.
 func (c *ResellerContext) UpdatePackage(pack Package) error {
-	// DA's update functionality is virtually identical to create, so we'll just use that
+	// DA's update functionality is virtually identical to create, so we'll just use that.
 	return c.CreatePackage(pack)
 }

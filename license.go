@@ -8,7 +8,7 @@ import (
 
 type License struct {
 	Expires time.Time `json:"expires"`
-	Lid     int       `json:"lid"`
+	LID     int       `json:"lid"`
 	Limits  struct {
 		Legacy               bool `json:"legacy"`
 		MaxAdminsOrResellers int  `json:"maxAdminsOrResellers"`
@@ -19,9 +19,9 @@ type License struct {
 		Trial                bool `json:"trial"`
 	} `json:"limits"`
 	Name  string `json:"name"`
-	Pid   int    `json:"pid"`
+	PID   int    `json:"pid"`
 	Type  string `json:"type"`
-	Uid   int    `json:"uid"`
+	UID   int    `json:"uid"`
 	Usage struct {
 		AdminsOrResellers int `json:"adminsOrResellers"`
 		Domains           int `json:"domains"`
@@ -33,7 +33,7 @@ func (c *AdminContext) GetLicense() (*License, error) {
 	var license License
 
 	if _, err := c.makeRequestNew(http.MethodGet, "license", nil, &license); err != nil {
-		return nil, fmt.Errorf("failed to get license: %v", err)
+		return nil, fmt.Errorf("failed to get license: %w", err)
 	}
 
 	return &license, nil

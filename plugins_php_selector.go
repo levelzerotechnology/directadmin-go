@@ -232,6 +232,39 @@ func (c *UserContext) PHPSelectorSetExtensions(version string, extensions ...str
 	return nil
 }
 
+// PHPSelectorSetVersion sets PHP to the given version.
+func (c *UserContext) PHPSelectorSetVersion(version string) error {
+	if err := c.CreateSession(); err != nil {
+		return fmt.Errorf("failed to create user session: %w", err)
+	}
+
+	csrfToken, err := c.phpSelectorCreateCSRFToken()
+	if err != nil {
+		return fmt.Errorf("failed to create CSRF token: %w", err)
+	}
+
+	body := url.Values{}
+	body.Set("command", "cloudlinux-selector")
+	body.Set("csrftoken", csrfToken)
+	body.Set("method", "set")
+	body.Set("params[current-version]", version)
+	body.Set("params[interpreter]", "php")
+
+	resp := struct {
+		Result string `json:"result"`
+	}{}
+
+	if _, err = c.makeRequestOld(http.MethodPost, "PLUGINS/phpselector/index.raw?c=send-request", body, &resp); err != nil {
+		return err
+	}
+
+	if resp.Result != "success" {
+		return errors.New("failed to set extensions")
+	}
+
+	return nil
+}
+
 // phpSelectorCreateCSRFToken creates a CSRF token for the PHP Selector plugin if one doesn't already exist.
 //
 // This is a helper function used to retrieve the CSRF token for the PHP Selector plugin.

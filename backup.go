@@ -6,7 +6,7 @@ import (
 	"net/url"
 )
 
-// CreateBackup (user) creates an account backup for the given domain, and the given items
+// CreateBackup (user) creates an account backup for the given domain, and the given items.
 func (c *UserContext) CreateBackup(domain string, backupItems ...string) error {
 	var response apiGenericResponse
 
@@ -30,7 +30,7 @@ func (c *UserContext) CreateBackup(domain string, backupItems ...string) error {
 	return nil
 }
 
-// CreateBackupAllItems (user) wraps around CreateBackup and provides all available backup items
+// CreateBackupAllItems (user) wraps around CreateBackup and provides all available backup items.
 func (c *UserContext) CreateBackupAllItems(domain string) error {
 	return c.CreateBackup(
 		domain,
@@ -51,7 +51,7 @@ func (c *UserContext) CreateBackupAllItems(domain string) error {
 	)
 }
 
-// GetBackups (user) returns an array of the session user's backups for the given domain
+// GetBackups (user) returns an array of the session user's backups for the given domain.
 func (c *UserContext) GetBackups(domain string) ([]string, error) {
 	var backups []string
 
@@ -62,7 +62,7 @@ func (c *UserContext) GetBackups(domain string) ([]string, error) {
 	return backups, nil
 }
 
-// RestoreBackup (user) restores an account backup for the given domain, and the given items
+// RestoreBackup (user) restores an account backup for the given domain, and the given items.
 func (c *UserContext) RestoreBackup(domain string, backupFilename string, backupItems ...string) error {
 	var response apiGenericResponse
 
@@ -87,7 +87,7 @@ func (c *UserContext) RestoreBackup(domain string, backupFilename string, backup
 	return nil
 }
 
-// RestoreBackupAllItems (user) wraps around RestoreBackup and provides all available backup items
+// RestoreBackupAllItems (user) wraps around RestoreBackup and provides all available backup items.
 func (c *UserContext) RestoreBackupAllItems(domain string, backupFilename string) error {
 	return c.RestoreBackup(
 		domain,

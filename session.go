@@ -11,31 +11,31 @@ type Session struct {
 	ConfigFeatures  struct {
 		Auth2FA                         bool `json:"auth2FA"`
 		BruteforceLogScanner            bool `json:"bruteforceLogScanner"`
-		Cgroup                          bool `json:"cgroup"`
-		Clamav                          bool `json:"clamav"`
+		CGroup                          bool `json:"cgroup"`
+		ClamAV                          bool `json:"clamav"`
 		Composer                        bool `json:"composer"`
-		Dnssec                          int  `json:"dnssec"`
+		DNSSEC                          int  `json:"dnssec"`
 		Git                             bool `json:"git"`
-		Imapsync                        bool `json:"imapsync"`
+		IMAPSync                        bool `json:"imapsync"`
 		Inode                           bool `json:"inode"`
-		Ipv6                            bool `json:"ipv6"`
+		IPv6                            bool `json:"IPv6"`
 		Jail                            int  `json:"jail"`
-		MxWithoutDNSControl             bool `json:"mxWithoutDNSControl"`
+		MXWithoutDNSControl             bool `json:"mxWithoutDNSControl"`
 		NetdataSock                     bool `json:"netdataSock"`
 		Nginx                           bool `json:"nginx"`
 		NginxProxy                      bool `json:"nginxProxy"`
 		NginxTemplates                  bool `json:"nginxTemplates"`
 		OneClickPMALogin                bool `json:"oneClickPMALogin"`
-		Phpmyadmin                      bool `json:"phpmyadmin"`
+		PHPMyAdmin                      bool `json:"phpmyadmin"`
 		Redis                           bool `json:"redis"`
-		ResellerCustomizeSkinConfigJson bool `json:"resellerCustomizeSkinConfigJson"`
+		ResellerCustomizeSkinConfigJSON bool `json:"resellerCustomizeSkinConfigJSON"`
 		Roundcube                       bool `json:"roundcube"`
 		RspamdSock                      bool `json:"rspamdSock"`
 		SecurityQuestions               bool `json:"securityQuestions"`
 		SquirrelMail                    bool `json:"squirrelMail"`
 		Unit                            bool `json:"unit"`
 		Webmail                         bool `json:"webmail"`
-		Wordpress                       bool `json:"wordpress"`
+		WordPress                       bool `json:"wordpress"`
 	} `json:"configFeatures"`
 	CustomDomainItems []struct {
 		Checked     bool   `json:"checked"`

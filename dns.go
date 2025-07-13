@@ -12,14 +12,14 @@ import (
 
 type DNSRecord struct {
 	Name  string `json:"name"`
-	Ttl   int    `json:"ttl"`
+	TTL   int    `json:"ttl"`
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-// CheckDNSRecordExists (user) checks if the given dns record exists on the server
+// CheckDNSRecordExists (user) checks if the given dns record exists on the server.
 //
-// checkField can be either "name" or "value"
+// checkField can be either "name" or "value".
 func (c *UserContext) CheckDNSRecordExists(checkField string, domain string, dnsRecord DNSRecord) error {
 	body := url.Values{
 		"check":  {checkField},
@@ -37,7 +37,7 @@ func (c *UserContext) CheckDNSRecordExists(checkField string, domain string, dns
 	return c.checkObjectExists(body)
 }
 
-// CreateDNSRecord (user) creates the provided dns record for the given domain
+// CreateDNSRecord (user) creates the provided DNS record for the given domain.
 func (c *UserContext) CreateDNSRecord(domain string, dnsRecord DNSRecord) error {
 	var response apiGenericResponse
 
@@ -46,7 +46,7 @@ func (c *UserContext) CreateDNSRecord(domain string, dnsRecord DNSRecord) error 
 	body := url.Values{
 		"domain": {domain},
 		"name":   {rawDNSRecordData.Name},
-		"ttl":    {cast.ToString(rawDNSRecordData.Ttl)},
+		"ttl":    {cast.ToString(rawDNSRecordData.TTL)},
 		"type":   {rawDNSRecordData.Type},
 		"value":  {rawDNSRecordData.Value},
 	}
@@ -62,7 +62,7 @@ func (c *UserContext) CreateDNSRecord(domain string, dnsRecord DNSRecord) error 
 	return nil
 }
 
-// DeleteDNSRecords (user) deletes all the specified dnss for the session user
+// DeleteDNSRecords (user) deletes all the specified DNS records for the session user.
 func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
 	var response apiGenericResponse
 
@@ -70,7 +70,9 @@ func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
 	dnsRecordMap := make(map[string][]string)
 
 	for _, dnsRecord := range dnsRecords {
-		dnsRecordMap[dnsRecord.Type] = append(dnsRecordMap[strings.ToLower(dnsRecord.Type)], fmt.Sprintf("name=%v&value=%v", dnsRecord.Name, dnsRecord.Value))
+		dnsType := strings.ToLower(dnsRecord.Type)
+
+		dnsRecordMap[dnsType] = append(dnsRecordMap[dnsType], fmt.Sprintf("name=%v&value=%v", dnsRecord.Name, dnsRecord.Value))
 	}
 
 	for dnsRecordType, dnsRecordData := range dnsRecordMap {
@@ -90,7 +92,7 @@ func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
 	return nil
 }
 
-// GetDNSRecords (user) returns the given domain's dns records
+// GetDNSRecords (user) returns the given domain's DNS records.
 func (c *UserContext) GetDNSRecords(domain string) ([]DNSRecord, error) {
 	var dnsRecords []DNSRecord
 	rawDNSRecords := struct {
@@ -112,7 +114,7 @@ func (c *UserContext) GetDNSRecords(domain string) ([]DNSRecord, error) {
 	return dnsRecords, nil
 }
 
-// UpdateDNSRecord (user) updates the given dns record for the given domain
+// UpdateDNSRecord (user) updates the given DNS record for the given domain.
 func (c *UserContext) UpdateDNSRecord(domain string, originalDNSRecord DNSRecord, updatedDNSRecord DNSRecord) error {
 	var response apiGenericResponse
 
@@ -121,7 +123,7 @@ func (c *UserContext) UpdateDNSRecord(domain string, originalDNSRecord DNSRecord
 	body := url.Values{
 		"domain": {domain},
 		"name":   {rawDNSRecordData.Name},
-		"ttl":    {cast.ToString(rawDNSRecordData.Ttl)},
+		"ttl":    {cast.ToString(rawDNSRecordData.TTL)},
 		"type":   {rawDNSRecordData.Type},
 		"value":  {rawDNSRecordData.Value},
 		strings.ToLower(originalDNSRecord.Type) + "recs0": {fmt.Sprintf("name=%v&value=%v", originalDNSRecord.Name, originalDNSRecord.Value)},

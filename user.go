@@ -87,7 +87,7 @@ type (
 		Users                    []string `json:"users"`
 		UsersLimit               int      `json:"usersLim"`
 		UsersManageDomains       int      `json:"usersManageDomains"`
-		WordpressEnabled         bool     `json:"wordpress"`
+		WordPressEnabled         bool     `json:"wordpress"`
 		Zoom                     int      `json:"zoom"`
 	}
 
@@ -162,7 +162,7 @@ type (
 	}
 )
 
-// GetMyUserConfig (user) returns the session user's config
+// GetMyUserConfig (user) returns the session user's config.
 func (c *UserContext) GetMyUserConfig() (*UserConfig, error) {
 	var config UserConfig
 
@@ -173,7 +173,7 @@ func (c *UserContext) GetMyUserConfig() (*UserConfig, error) {
 	return &config, nil
 }
 
-// GetMyUserUsage (user) returns the session user's usage
+// GetMyUserUsage (user) returns the session user's usage.
 func (c *UserContext) GetMyUserUsage() (*UserUsage, error) {
 	var usage UserUsage
 

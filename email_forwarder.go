@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cast"
 )
 
+// CreateEmailForwarder (user) creates the specified email forwarder.
 func (c *UserContext) CreateEmailForwarder(domain string, user string, emails ...string) error {
 	var response apiGenericResponse
 
@@ -28,7 +29,7 @@ func (c *UserContext) CreateEmailForwarder(domain string, user string, emails ..
 	return nil
 }
 
-// GetEmailForwarders (user) returns an array of email forwarders belonging to the provided domain
+// GetEmailForwarders (user) returns an array of email forwarders belonging to the provided domain.
 func (c *UserContext) GetEmailForwarders(domain string) (map[string][]string, error) {
 	emailForwarders := make(map[string][]string)
 
@@ -39,6 +40,7 @@ func (c *UserContext) GetEmailForwarders(domain string) (map[string][]string, er
 	return emailForwarders, nil
 }
 
+// DeleteEmailForwarder deletes the specified email forwarder.
 func (c *UserContext) DeleteEmailForwarders(domain string, names ...string) error {
 	var response apiGenericResponse
 
@@ -60,6 +62,7 @@ func (c *UserContext) DeleteEmailForwarders(domain string, names ...string) erro
 	return nil
 }
 
+// UpdateEmailForwarder (user) updates the specified email forwarder.
 func (c *UserContext) UpdateEmailForwarder(domain string, user string, emails ...string) error {
 	var response apiGenericResponse
 

@@ -15,7 +15,7 @@ type PHPVersion struct {
 	Version  string `json:"version"`
 }
 
-// GetPHPVersions (user) returns an array of the available PHP versions
+// GetPHPVersions (user) returns an array of the available PHP versions.
 func (c *UserContext) GetPHPVersions(domainName string) ([]*PHPVersion, error) {
 	var rawPHPVersions struct {
 		PHPSelect map[string]struct {
@@ -54,7 +54,7 @@ func (c *UserContext) GetPHPVersions(domainName string) ([]*PHPVersion, error) {
 	return versions, nil
 }
 
-// SetPHPVersion (user) sets the PHP version for the given domain to the given version ID
+// SetPHPVersion (user) sets the PHP version for the given domain to the given version ID.
 func (c *UserContext) SetPHPVersion(domain string, versionID string) error {
 	var response apiGenericResponse
 

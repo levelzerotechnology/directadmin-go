@@ -26,7 +26,7 @@ type (
 		Created       time.Time `json:"created"`
 		CreatedBy     string    `json:"createdBy"`
 		Expires       time.Time `json:"expires"`
-		Id            string    `json:"id"`
+		ID            string    `json:"id"`
 		RedirectURL   string    `json:"redirectURL"`
 		URL           string    `json:"url"`
 	}
@@ -52,7 +52,7 @@ func (c *AdminContext) GetLoginHistory() ([]*LoginHistory, error) {
 	}
 
 	if len(loginHistory) == 0 {
-		return nil, fmt.Errorf("no login history found")
+		return nil, errors.New("no login history found")
 	}
 
 	return loginHistory, nil
@@ -69,7 +69,7 @@ func (c *UserContext) GetLoginURLs() ([]*LoginKeyURL, error) {
 }
 
 // GetMyUsername returns the current user's username. This is particularly useful when logging in as another user, as it
-// trims the admin/reseller username automatically
+// trims the admin/reseller username automatically.
 func (c *UserContext) GetMyUsername() string {
 	// If the user is logged in via reseller, we need to remove the reseller username from the context's username.
 	if strings.Contains(c.credentials.username, "|") {
@@ -79,6 +79,7 @@ func (c *UserContext) GetMyUsername() string {
 	return c.credentials.username
 }
 
+// Login checks whether the configured credentials work against the configured API.
 func (c *UserContext) Login() error {
 	var response apiGenericResponse
 
@@ -94,7 +95,7 @@ func (c *UserContext) Login() error {
 }
 
 // LoginAsAdmin verifies the provided credentials against the DA API, then returns an admin-level context.
-// The passkey can either be the user's password, or a login key
+// The passkey can either be the user's password, or a login key.
 func (a *API) LoginAsAdmin(username string, passkey string) (*AdminContext, error) {
 	userCtx, err := a.login(username, passkey)
 	if err != nil {
@@ -115,7 +116,7 @@ func (a *API) LoginAsAdmin(username string, passkey string) (*AdminContext, erro
 }
 
 // LoginAsReseller verifies the provided credentials against the DA API, then returns a reseller-level context.
-// The passkey can either be the user's password, or a login key
+// The passkey can either be the user's password, or a login key.
 func (a *API) LoginAsReseller(username string, passkey string) (*ResellerContext, error) {
 	userCtx, err := a.login(username, passkey)
 	if err != nil {
@@ -134,7 +135,7 @@ func (a *API) LoginAsReseller(username string, passkey string) (*ResellerContext
 }
 
 // LoginAsUser verifies the provided credentials against the DA API, then returns a user-level context.
-// The passkey can either be the user's password, or a login key
+// The passkey can either be the user's password, or a login key.
 func (a *API) LoginAsUser(username string, passkey string) (*UserContext, error) {
 	userCtx, err := a.login(username, passkey)
 	if err != nil {
@@ -148,14 +149,18 @@ func (a *API) LoginAsUser(username string, passkey string) (*UserContext, error)
 	return userCtx, nil
 }
 
+// LoginAsMyReseller logs the current admin into the given reseller's account.
 func (c *AdminContext) LoginAsMyReseller(username string) (*ResellerContext, error) {
 	return c.api.LoginAsReseller(c.credentials.username+"|"+username, c.credentials.passkey)
 }
 
+// LoginAsMyUser logs the current reseller into the given user's account.
 func (c *ResellerContext) LoginAsMyUser(username string) (*UserContext, error) {
 	return c.api.LoginAsUser(c.credentials.username+"|"+username, c.credentials.passkey)
 }
 
+// login sets up the user context's cookie jar, verifies that the credentials work against the API, and pulls the user's
+// config.
 func (a *API) login(username string, passkey string) (*UserContext, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {

@@ -36,7 +36,7 @@ type rawSysInfo struct {
 		HugePagesSurp     string `json:"HugePages_Surp"`
 		HugePagesTotal    string `json:"HugePages_Total"`
 		HugePageSize      string `json:"Hugepagesize"`
-		HugeTlb           string `json:"Hugetlb"`
+		HugeTLB           string `json:"HugeTLB"`
 		Inactive          string `json:"Inactive"`
 		InactiveAnon      string `json:"Inactive(anon)"`
 		InactiveFile      string `json:"Inactive(file)"`
@@ -47,9 +47,9 @@ type rawSysInfo struct {
 		MemFree           string `json:"MemFree"`
 		MemTotal          string `json:"MemTotal"`
 		MLocked           string `json:"Mlocked"`
-		NfsUnstable       string `json:"NFS_Unstable"`
+		NFSUnstable       string `json:"nfs_unstable"`
 		PageTables        string `json:"PageTables"`
-		PerCpu            string `json:"Percpu"`
+		PerCPU            string `json:"PerCPU"`
 		SReclaimable      string `json:"SReclaimable"`
 		SUnreclaim        string `json:"SUnreclaim"`
 		Shmem             string `json:"Shmem"`
@@ -60,11 +60,11 @@ type rawSysInfo struct {
 		SwapFree          string `json:"SwapFree"`
 		SwapTotal         string `json:"SwapTotal"`
 		Unevictable       string `json:"Unevictable"`
-		VmallocChunk      string `json:"VmallocChunk"`
-		VmallocTotal      string `json:"VmallocTotal"`
-		VmallocUsed       string `json:"VmallocUsed"`
+		VMAllocChunk      string `json:"VmallocChunk"`
+		VMAllocTotal      string `json:"VmallocTotal"`
+		VMAllocUsed       string `json:"VmallocUsed"`
 		Writeback         string `json:"Writeback"`
-		WritebackTmp      string `json:"WritebackTmp"`
+		WritebackTMP      string `json:"WritebackTmp"`
 	} `json:"mem_info"`
 	NumberOfCPUs string `json:"numcpus"`
 	Services     map[string]struct {
@@ -84,11 +84,11 @@ type rawSysInfo struct {
 func (r *rawSysInfo) parse() SysInfo {
 	sysInfo := SysInfo{}
 
-	sysInfo.CpuCount = cast.ToInt(r.NumberOfCPUs)
+	sysInfo.CPUCount = cast.ToInt(r.NumberOfCPUs)
 
 	counter := 0
 	for _, cpu := range r.CPUs {
-		sysInfo.Cpus[cast.ToString(counter)] = struct {
+		sysInfo.CPUs[cast.ToString(counter)] = struct {
 			MHz    float64 `json:"mhz"`
 			Model  string  `json:"model"`
 			Vendor string  `json:"vendor"`
@@ -126,7 +126,7 @@ func (r *rawSysInfo) parse() SysInfo {
 	sysInfo.MemInfo.HugePagesSurp = cast.ToInt(r.MemInfo.HugePagesSurp)
 	sysInfo.MemInfo.HugePagesTotal = cast.ToInt(r.MemInfo.HugePagesTotal)
 	sysInfo.MemInfo.HugePageSize = cast.ToInt(r.MemInfo.HugePageSize)
-	sysInfo.MemInfo.HugeTlb = cast.ToInt(r.MemInfo.HugeTlb)
+	sysInfo.MemInfo.HugeTlb = cast.ToInt(r.MemInfo.HugeTLB)
 	sysInfo.MemInfo.Inactive = cast.ToInt(r.MemInfo.Inactive)
 	sysInfo.MemInfo.InactiveAnon = cast.ToInt(r.MemInfo.InactiveAnon)
 	sysInfo.MemInfo.InactiveFile = cast.ToInt(r.MemInfo.InactiveFile)
@@ -137,9 +137,9 @@ func (r *rawSysInfo) parse() SysInfo {
 	sysInfo.MemInfo.MemFree = cast.ToInt(r.MemInfo.MemFree)
 	sysInfo.MemInfo.MemTotal = cast.ToInt(r.MemInfo.MemTotal)
 	sysInfo.MemInfo.MLocked = cast.ToInt(r.MemInfo.MLocked)
-	sysInfo.MemInfo.NfsUnstable = cast.ToInt(r.MemInfo.NfsUnstable)
+	sysInfo.MemInfo.NfsUnstable = cast.ToInt(r.MemInfo.NFSUnstable)
 	sysInfo.MemInfo.PageTables = cast.ToInt(r.MemInfo.PageTables)
-	sysInfo.MemInfo.PerCpu = cast.ToInt(r.MemInfo.PerCpu)
+	sysInfo.MemInfo.PerCPU = cast.ToInt(r.MemInfo.PerCPU)
 	sysInfo.MemInfo.SReclaimable = cast.ToInt(r.MemInfo.SReclaimable)
 	sysInfo.MemInfo.SUnreclaim = cast.ToInt(r.MemInfo.SUnreclaim)
 	sysInfo.MemInfo.Shmem = cast.ToInt(r.MemInfo.Shmem)
@@ -150,14 +150,14 @@ func (r *rawSysInfo) parse() SysInfo {
 	sysInfo.MemInfo.SwapFree = cast.ToInt(r.MemInfo.SwapFree)
 	sysInfo.MemInfo.SwapTotal = cast.ToInt(r.MemInfo.SwapTotal)
 	sysInfo.MemInfo.Unevictable = cast.ToInt(r.MemInfo.Unevictable)
-	sysInfo.MemInfo.VmallocChunk = cast.ToInt(r.MemInfo.VmallocChunk)
-	sysInfo.MemInfo.VmallocTotal = cast.ToInt(r.MemInfo.VmallocTotal)
-	sysInfo.MemInfo.VmallocUsed = cast.ToInt(r.MemInfo.VmallocUsed)
+	sysInfo.MemInfo.VMAllocChunk = cast.ToInt(r.MemInfo.VMAllocChunk)
+	sysInfo.MemInfo.VMAllocTotal = cast.ToInt(r.MemInfo.VMAllocTotal)
+	sysInfo.MemInfo.VMAllocUsed = cast.ToInt(r.MemInfo.VMAllocUsed)
 	sysInfo.MemInfo.Writeback = cast.ToInt(r.MemInfo.Writeback)
-	sysInfo.MemInfo.WritebackTmp = cast.ToInt(r.MemInfo.WritebackTmp)
+	sysInfo.MemInfo.WritebackTMP = cast.ToInt(r.MemInfo.WritebackTMP)
 
-	for serviceId, service := range r.Services {
-		sysInfo.Services[serviceId] = struct {
+	for serviceID, service := range r.Services {
+		sysInfo.Services[serviceID] = struct {
 			Name    string `json:"name"`
 			Status  string `json:"status"`
 			Version string `json:"version"`

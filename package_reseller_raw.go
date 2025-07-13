@@ -12,7 +12,7 @@ type rawResellerPackage struct {
 func (p *ResellerPackage) translate() (pack rawResellerPackage) {
 	pack = rawResellerPackage{
 		rawPackage:      p.Package.translate(),
-		OversellEnabled: reverseParseOnOff(p.OversellEnabled, false),
+		OversellEnabled: reverseParseOnOff(p.OversellEnabled),
 	}
 
 	if p.UserQuota == -1 {

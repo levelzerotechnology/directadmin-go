@@ -8,7 +8,7 @@ import (
 type Message struct {
 	From      string    `json:"from"`
 	FromName  string    `json:"fromName"`
-	Id        int       `json:"id"`
+	ID        int       `json:"id"`
 	LegacyID  string    `json:"legacyID"`
 	Message   string    `json:"message"`
 	Subject   string    `json:"subject"`
@@ -16,7 +16,7 @@ type Message struct {
 	Unread    bool      `json:"unread"`
 }
 
-// GetMessages (user) returns an array of the session user's backups
+// GetMessages (user) returns an array of the session user's backups.
 func (c *UserContext) GetMessages() ([]*Message, error) {
 	var messages []*Message
 

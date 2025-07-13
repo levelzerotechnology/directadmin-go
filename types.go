@@ -7,7 +7,7 @@ import (
 
 const Unlimited int = -1
 
-func parseNum(value string) (result int) {
+func parseNum(value string) int {
 	if value == "" || value == "unlimited" {
 		return -1
 	}
@@ -17,10 +17,10 @@ func parseNum(value string) (result int) {
 		return 0
 	}
 
-	return
+	return result
 }
 
-func parseOnOff(value string) (result bool) {
+func parseOnOff(value string) bool {
 	value = strings.ToUpper(value)
 
 	switch value {
@@ -33,7 +33,7 @@ func parseOnOff(value string) (result bool) {
 	return false
 }
 
-func reverseParseNum(value int, empty bool) (result string) {
+func reverseParseNum(value int, empty bool) string {
 	if value == -1 {
 		if empty {
 			return ""
@@ -44,29 +44,25 @@ func reverseParseNum(value int, empty bool) (result string) {
 	return strconv.Itoa(value)
 }
 
-func reverseParseOnOff(value bool, lowercase bool) (result string) {
+func reverseParseOnOff(value bool) string {
+	var result string
+
 	if value {
 		result = "ON"
 	} else {
 		result = "OFF"
 	}
 
-	if lowercase {
-		result = strings.ToLower(result)
-	}
-
 	return result
 }
 
-func reverseParseYesNo(value bool, lowercase bool) (result string) {
+func reverseParseYesNo(value bool) string {
+	var result string
+
 	if value {
 		result = "YES"
 	} else {
 		result = "NO"
-	}
-
-	if lowercase {
-		result = strings.ToLower(result)
 	}
 
 	return result
