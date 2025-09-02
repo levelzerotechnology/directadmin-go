@@ -91,7 +91,7 @@ func (c *UserContext) PHPSelectorDisableExtension(version string, extension stri
 		}
 	}
 
-	// Extension is already disabled or doesn't exist..
+	// Extension is already disabled or doesn't exist.
 	if len(setExtensions) == len(enabledExtensions) {
 		return nil
 	}
@@ -214,6 +214,49 @@ func (c *UserContext) PHPSelectorSetExtensions(version string, extensions ...str
 	body.Set("csrftoken", csrfToken)
 	body.Set("method", "set")
 	body.Set("params[extensions]", string(jsonExtensions))
+	body.Set("params[interpreter]", "php")
+	body.Set("params[version]", version)
+
+	resp := struct {
+		Result string `json:"result"`
+	}{}
+
+	if _, err = c.makeRequestOld(http.MethodPost, "PLUGINS/phpselector/index.raw?c=send-request", body, &resp); err != nil {
+		return err
+	}
+
+	if resp.Result != "success" {
+		return errors.New("failed to set extensions")
+	}
+
+	return nil
+}
+
+// PHPSelectorSetOptions sets the given options for the given PHP version.
+func (c *UserContext) PHPSelectorSetOptions(version string, options map[string]string) error {
+	if options == nil {
+		return errors.New("no options provided")
+	}
+
+	if err := c.CreateSession(); err != nil {
+		return fmt.Errorf("failed to create user session: %w", err)
+	}
+
+	csrfToken, err := c.phpSelectorCreateCSRFToken()
+	if err != nil {
+		return fmt.Errorf("failed to create CSRF token: %w", err)
+	}
+
+	jsonOptions, err := json.Marshal(options)
+	if err != nil {
+		return fmt.Errorf("failed to marshal options: %w", err)
+	}
+
+	body := url.Values{}
+	body.Set("command", "cloudlinux-selector")
+	body.Set("csrftoken", csrfToken)
+	body.Set("method", "set")
+	body.Set("params[options]", string(jsonOptions))
 	body.Set("params[interpreter]", "php")
 	body.Set("params[version]", version)
 
