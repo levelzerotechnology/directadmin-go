@@ -32,11 +32,11 @@ func (c *UserContext) CreateEmailAccount(emailAccount EmailAccount) error {
 	body.Set("quota", cast.ToString(emailAccount.DiskQuota))
 	body.Set("limit", cast.ToString(emailAccount.SendQuota))
 
-	if _, err := c.makeRequestOld(http.MethodPost, "API_POP?action=create", body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_POP?action=create", body, &response); err != nil {
 		return err
 	}
 
-	if response.Success != "Email account created" {
+	if response.Success != "Account created" {
 		return fmt.Errorf("failed to create email account: %v", response.Result)
 	}
 
