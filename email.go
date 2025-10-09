@@ -149,7 +149,7 @@ func (c *UserContext) UpdateEmailAccount(emailAccount EmailAccount) error {
 		return err
 	}
 
-	if response.Success != "Account password changed" {
+	if response.Success != "E-Mail Updated" {
 		return fmt.Errorf("failed to update email account: %v", response.Result)
 	}
 
