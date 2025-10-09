@@ -50,7 +50,7 @@ func (c *UserContext) DeleteEmailAccount(domain string, name string) error {
 	body.Set("domain", domain)
 	body.Set("user", name)
 
-	if _, err := c.makeRequestOld(http.MethodPost, "API_POP?action=delete", body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_POP?action=delete", body, &response); err != nil {
 		return err
 	}
 
@@ -145,7 +145,7 @@ func (c *UserContext) UpdateEmailAccount(emailAccount EmailAccount) error {
 	body.Set("quota", cast.ToString(emailAccount.DiskQuota))
 	body.Set("limit", cast.ToString(emailAccount.SendQuota))
 
-	if _, err := c.makeRequestOld(http.MethodPost, "API_POP?action=modify", body, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_POP?action=modify", body, &response); err != nil {
 		return err
 	}
 
