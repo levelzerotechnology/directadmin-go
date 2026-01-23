@@ -179,6 +179,19 @@ func (c *UserContext) GetDatabaseProcesses() ([]*DatabaseProcess, error) {
 	return databaseProcesses, nil
 }
 
+// CreatePHPMyAdminLoginURL (user) returns a one-time URL that logs directly into PHPMyAdmin for the active account.
+func (c *UserContext) CreatePHPMyAdminLoginURL() (string, error) {
+	var response struct {
+		URL string `json:"url"`
+	}
+
+	if _, err := c.makeRequestNew(http.MethodGet, "phpmyadmin-sso/account-access", nil, &response); err != nil {
+		return "", err
+	}
+
+	return response.URL, nil
+}
+
 // ImportDatabase (user) imports the given database export into the given database.
 func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase bool, sql []byte) error {
 	databaseName = c.addUsernamePrefix(databaseName)

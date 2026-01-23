@@ -108,6 +108,63 @@ func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 	return emailAccounts, nil
 }
 
+// CreateWebmailLoginURL (user) returns a one-time URL that logs directly into webmail for the given address.
+func (c *UserContext) CreateWebmailLoginURL(address string) (string, error) {
+	var response struct {
+		Success string `json:"success"`
+		Token   string `json:"token"`
+		URL     string `json:"url"`
+	}
+
+	body := url.Values{}
+	body.Set("email", address)
+	body.Set("json", "yes")
+
+	if _, err := c.makeRequestOld(http.MethodPost, "WEBMAIL_LOGIN", body, &response); err != nil {
+		return "", err
+	}
+
+	if response.Success != "yes" {
+		return "", errors.New("login failed")
+	}
+
+	return fmt.Sprintf("%s?token=%s", response.URL, response.Token), nil
+}
+
+// GetEmailEnabled (user) returns whether DirectAdmin is configured to handle email for the given domain.
+func (c *UserContext) GetEmailEnabled(domain string) (bool, error) {
+	var response struct {
+		Internal string `json:"internal"`
+	}
+
+	if _, err := c.makeRequestOld(http.MethodGet, "DNS_MX?json=yes&domain="+domain, nil, &response); err != nil {
+		return false, err
+	}
+
+	return parseOnOff(response.Internal), nil
+}
+
+// ToggleEmailEnabled (user) sets whether DirectAdmin is configured to handle email for the given domain.
+func (c *UserContext) ToggleEmailEnabled(domain string, enabled bool) error {
+	var response apiGenericResponse
+
+	body := url.Values{}
+	body.Set("action", "internal")
+	body.Set("domain", domain)
+	body.Set("internal", reverseParseYesNo(enabled))
+	body.Set("json", "yes")
+
+	if _, err := c.makeRequestOld(http.MethodPost, "DNS_MX", body, &response); err != nil {
+		return err
+	}
+
+	if response.Success != "Option Saved" {
+		return errors.New("failed to toggle email enabled")
+	}
+
+	return nil
+}
+
 // ToggleDKIM (user) sets DKIM for the given domain.
 func (c *UserContext) ToggleDKIM(domain string, status bool) error {
 	var response apiGenericResponse
