@@ -185,7 +185,7 @@ func (c *UserContext) CreatePHPMyAdminLoginURL() (string, error) {
 		URL string `json:"url"`
 	}
 
-	if _, err := c.makeRequestNew(http.MethodGet, "phpmyadmin-sso/account-access", nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPost, "phpmyadmin-sso/account-access", nil, &response); err != nil {
 		return "", err
 	}
 
