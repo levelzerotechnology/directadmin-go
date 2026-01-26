@@ -163,7 +163,35 @@ func SoftaculousScriptWithDefaults() *SoftaculousScript {
 	}
 }
 
-// SoftaculousInstallScript calls Softaculous's install script API endpoint.
+// SoftaculousCreateLoginURL (user) returns a one-time URL that logs directly into the given installation's admin panel.
+//
+// Docs: https://www.softaculous.com/docs/api/remote-api/#auto-sign-on
+func (c *UserContext) SoftaculousCreateLoginURL(installID string) (string, error) {
+	var response struct {
+		Error map[string]string `json:"error"`
+		URL   string            `json:"sign_on_url"`
+	}
+
+	if installID == "" {
+		return "", errors.New("missing install id")
+	}
+
+	if err := c.CreateSession(); err != nil {
+		return "", fmt.Errorf("failed to create user session: %w", err)
+	}
+
+	if _, err := c.makeRequestOld(http.MethodPost, "PLUGINS/softaculous/index.raw?act=sign_on&insid="+installID+"&api=json", nil, &response); err != nil {
+		return "", err
+	}
+
+	if len(response.Error) > 0 {
+		return "", fmt.Errorf("failed to get login url: %v", response.Error)
+	}
+
+	return response.URL, nil
+}
+
+// SoftaculousInstallScript (user) calls Softaculous's install script API endpoint.
 //
 // Docs: https://www.softaculous.com/docs/api/remote-api/#install-a-script
 func (c *UserContext) SoftaculousInstallScript(script *SoftaculousScript, scriptID int) error {
@@ -200,7 +228,9 @@ func (c *UserContext) SoftaculousInstallScript(script *SoftaculousScript, script
 	return nil
 }
 
-// SoftaculousListInstallations lists all installations accessible to the authenticated user.
+// SoftaculousListInstallations (user) lists all installations accessible to the authenticated user.
+//
+// Docs: https://www.softaculous.com/docs/api/remote-api/#list-installed-script
 func (c *UserContext) SoftaculousListInstallations() ([]*SoftaculousInstallation, error) {
 	type rawResponse struct {
 		Error         map[string]string `json:"error"`
@@ -242,7 +272,7 @@ func (c *UserContext) SoftaculousListInstallations() ([]*SoftaculousInstallation
 	return nil, errors.New("unexpected format for installations field")
 }
 
-// SoftaculousUninstallScript calls Softaculous's install script API endpoint.
+// SoftaculousUninstallScript (user) calls Softaculous's install script API endpoint.
 //
 // Docs: https://www.softaculous.com/docs/api/remote-api/#remove-an-installed-script
 func (c *UserContext) SoftaculousUninstallScript(installID string, deleteFiles bool, deleteDB bool) error {
