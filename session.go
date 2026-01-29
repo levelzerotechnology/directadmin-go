@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Session struct {
@@ -91,7 +92,10 @@ func (c *UserContext) CreateSession() error {
 	apiCookies := c.cookieJar.Cookies(c.api.parsedURL)
 	for _, cookie := range apiCookies {
 		if cookie.Name == "session" {
-			return nil
+			// A session lasts for 60 minutes.
+			if time.Now().Before(c.sessionExpires) {
+				return nil
+			}
 		}
 	}
 
@@ -116,15 +120,12 @@ func (c *UserContext) CreateSession() error {
 		return err
 	}
 
-	c.cookieJar.SetCookies(c.api.parsedURL, []*http.Cookie{{Name: "session", Value: response.SessionID}})
+	c.cookieJar.SetCookies(c.api.parsedURL, []*http.Cookie{{Name: "session", Value: response.SessionID, Path: "/"}})
+	c.sessionExpires = time.Now().Add(sessionTimeout)
 
 	// If we're a reseller logged in as a user, switch the session to the user.
 	if c.GetMyUsername() != c.credentials.username {
-		switchRequest := struct {
-			Username string `json:"username"`
-		}{
-			strings.Split(c.credentials.username, "|")[1],
-		}
+		switchRequest := map[string]string{"username": strings.Split(c.credentials.username, "|")[1]}
 
 		if _, err := c.makeRequestNew(http.MethodPost, "session/login-as/switch", switchRequest, nil); err != nil {
 			return err

@@ -15,6 +15,8 @@ import (
 // debugBodyLimit caps the debug body bytes to 32KB.
 const debugBodyLimit = 32768
 
+const sessionTimeout = 1 * time.Hour
+
 type httpDebug struct {
 	Body          string
 	BodyTruncated bool
@@ -77,6 +79,14 @@ func (c *UserContext) makeRequest(req *http.Request) ([]byte, error) {
 
 	// Required for plugin usage in particular (session and csrf token cookies).
 	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "session" {
+			c.sessionExpires = time.Now().Add(sessionTimeout)
+		}
+
+		if cookie.Path == "" {
+			cookie.Path = "/"
+		}
+
 		c.cookieJar.SetCookies(req.URL, []*http.Cookie{cookie})
 	}
 
@@ -127,6 +137,7 @@ func (c *UserContext) makeRequestNew(method string, endpoint string, body any, o
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", c.api.url)
+	req.Header.Set("User-Agent", "DirectAdmin-Go-SDK")
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.makeRequest(req)
@@ -155,6 +166,7 @@ func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Va
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", c.api.url)
+	req.Header.Set("User-Agent", "DirectAdmin-Go-SDK")
 	req.URL.RawQuery = query.Encode()
 
 	var genericResponse apiGenericResponse

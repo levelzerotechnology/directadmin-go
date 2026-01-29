@@ -30,10 +30,11 @@ type (
 	}
 
 	UserContext struct {
-		api         *API
-		cookieJar   http.CookieJar
-		credentials credentials
-		User        User
+		api            *API
+		cookieJar      http.CookieJar
+		credentials    credentials
+		sessionExpires time.Time
+		User           User
 	}
 
 	UserConfig struct {
