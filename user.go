@@ -5,12 +5,28 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type (
 	User struct {
 		Config UserConfig `json:"config"`
 		Usage  UserUsage  `json:"usage"`
+
+		Created  time.Time `json:"created"`
+		Domains  []string  `json:"domains"`
+		IPs      []string  `json:"ips"`
+		Username string    `json:"username"`
+
+		BandwidthLimit  int    `json:"bandwidthLimit"`
+		BandwidthUsage  int    `json:"bandwidthUsage"`
+		DomainsLimit    int    `json:"domainsLimit"`
+		Package         string `json:"package"`
+		DomainsUsage    int    `json:"domainsUsage"`
+		QuotaLimit      int    `json:"quotaLimit"`
+		QuotaUsage      int    `json:"quotaUsage"`
+		Suspended       bool   `json:"suspended"`
+		SuspendedReason string `json:"suspendedReason"`
 	}
 
 	UserContext struct {

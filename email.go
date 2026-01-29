@@ -137,7 +137,7 @@ func (c *UserContext) GetEmailEnabled(domain string) (bool, error) {
 		Internal string `json:"internal"`
 	}
 
-	if _, err := c.makeRequestOld(http.MethodGet, "DNS_MX?json=yes&domain="+domain, nil, &response); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, "API_DNS_MX?json=yes&domain="+domain, nil, &response); err != nil {
 		return false, err
 	}
 

@@ -107,29 +107,24 @@ func (c *ResellerContext) DeleteUsers(usernames ...string) error {
 	return nil
 }
 
-// GetMyUsers (reseller) returns all users belonging to the session user.
-func (c *ResellerContext) GetMyUsers() ([]string, error) {
-	var users []string
+// GetMyUsers (reseller) returns all users belonging to the session user, with surface-level config and usage info.
+//
+// For full config and usage info, call GetMyUsersWithData.
+func (c *ResellerContext) GetMyUsers() ([]*User, error) {
+	var rawUsers rawShownUsers
 
-	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USERS", nil, &users); err != nil {
+	// The "ipp" query param is for how many users are returned in a single call.
+	if _, err := c.makeRequestOld(http.MethodGet, "USER_SHOW?bytes=yes&ipp=9999", nil, &rawUsers); err != nil {
 		return nil, err
 	}
 
-	if len(users) == 0 {
-		return nil, errors.New("no users could be found")
-	}
-
-	return users, nil
+	return rawUsers.translate(), nil
 }
 
 // GetMyUsersWithData (reseller) returns all users belonging to the session user, along with the toggled data (config
 // and/or usage).
-func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage bool) ([]User, error) {
-	var err error
-	var usernames []string
-	var users []User
-
-	usernames, err = c.GetMyUsers()
+func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage bool) ([]*User, error) {
+	users, err := c.GetMyUsers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get users: %w", err)
 	}
@@ -137,22 +132,17 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 	var errs []error
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	wg.Add(len(usernames))
+	wg.Add(len(users))
 
-	for _, username := range usernames {
-		// Convert to a local variable to prevent variable overwrite.
-		userToProcess := username
-
-		go func(username string) {
+	for _, user := range users {
+		go func(user *User) {
 			defer wg.Done()
 
-			var user User
-
 			if retrieveConfig {
-				config, err := c.GetUserConfig(username)
+				config, err := c.GetUserConfig(user.Username)
 				if err != nil {
 					mu.Lock()
-					errs = append(errs, fmt.Errorf("failed to get user config for %v: %w", username, err))
+					errs = append(errs, fmt.Errorf("failed to get user config for %v: %w", user.Username, err))
 					mu.Unlock()
 					return
 				}
@@ -161,10 +151,10 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 			}
 
 			if retrieveUsage {
-				usage, err := c.GetUserUsage(username)
+				usage, err := c.GetUserUsage(user.Username)
 				if err != nil {
 					mu.Lock()
-					errs = append(errs, fmt.Errorf("failed to get user usage for %v: %w", username, err))
+					errs = append(errs, fmt.Errorf("failed to get user usage for %v: %w", user.Username, err))
 					mu.Unlock()
 					return
 				}
@@ -175,7 +165,7 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 			mu.Lock()
 			users = append(users, user)
 			mu.Unlock()
-		}(userToProcess)
+		}(user)
 	}
 
 	wg.Wait()

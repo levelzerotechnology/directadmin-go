@@ -99,22 +99,23 @@ func (c *ResellerContext) DeletePackages(packs ...string) error {
 }
 
 // GetPackage (reseller) returns the single specified package.
-func (c *ResellerContext) GetPackage(packageName string) (Package, error) {
+func (c *ResellerContext) GetPackage(packageName string) (*Package, error) {
 	var rawPack rawPackage
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER?package="+packageName, nil, &rawPack); err != nil {
-		return Package{}, fmt.Errorf("failed to get package info for %v: %w", packageName, err)
+		return &Package{}, fmt.Errorf("failed to get package info for %v: %w", packageName, err)
 	}
 
 	rawPack.Name = packageName
+	pkg := rawPack.translate()
 
-	return rawPack.translate(), nil
+	return &pkg, nil
 }
 
 // GetPackages (reseller) returns all packages belonging to the session user.
-func (c *ResellerContext) GetPackages() ([]Package, error) {
+func (c *ResellerContext) GetPackages() ([]*Package, error) {
 	var packageList []string
-	var packages []Package
+	var packages []*Package
 
 	if _, err := c.makeRequestOld(http.MethodGet, "API_PACKAGES_USER", nil, &packageList); err != nil {
 		return nil, err
