@@ -50,6 +50,27 @@ func (c *ResellerContext) AddUserIP(username string, ip string) error {
 	return nil
 }
 
+// ChangeUserIP (reseller) changes a user's primary IP.
+func (c *ResellerContext) ChangeUserIP(username string, ip string) error {
+	var response apiGenericResponse
+
+	body := url.Values{}
+	body.Set("select0", username)
+	body.Set("ip", ip)
+	body.Set("location", "CMD_USER_SHOW")
+	body.Set("doip", "yes")
+
+	if _, err := c.makeRequestOld(http.MethodPost, "SELECT_USERS", body, &response); err != nil {
+		return fmt.Errorf("failed to change user's primary IP: %w", err)
+	}
+
+	if response.Success != "Success" {
+		return fmt.Errorf("failed to change user's primary IP: %v", response.Result)
+	}
+
+	return nil
+}
+
 // CreateUser (reseller) create a user.
 //
 // The following fields must be populated: Domain, Email, IPAddresses, Package, Username.
