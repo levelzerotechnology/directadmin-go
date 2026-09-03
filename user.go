@@ -210,14 +210,10 @@ func (c *UserContext) addUsernamePrefix(check string) string {
 }
 
 func (c *UserContext) checkObjectExists(body url.Values) error {
-	var response apiGenericResponse
-
-	if _, err := c.makeRequestOld(http.MethodGet, "JSON_VALIDATE?"+body.Encode(), nil, &response); err != nil {
-		return err
-	}
-
-	if response.Error != "" {
-		return fmt.Errorf("object already exists: %v", response.Error)
+	// JSON_VALIDATE reports an existing object through the response's error field, which
+	// makeRequestOld surfaces as an error.
+	if _, err := c.makeRequestOld(http.MethodGet, "JSON_VALIDATE?"+body.Encode(), nil, nil); err != nil {
+		return fmt.Errorf("object already exists: %w", err)
 	}
 
 	return nil

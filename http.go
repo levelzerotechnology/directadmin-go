@@ -180,16 +180,39 @@ func (c *UserContext) makeRequestOld(method string, endpoint string, body url.Va
 	}
 
 	if resp != nil {
+		// The old API reports failures as an error field with a 200, so this is checked
+		// before decoding into object. A caller's struct won't carry the error field and
+		// would otherwise be handed back zeroed with no error at all.
+		if err = json.Unmarshal(resp, &genericResponse); err == nil && genericResponse.Error != "" {
+			return nil, errors.New(genericResponse.Error + ": " + genericResponse.Result)
+		}
+
 		if object != nil {
 			if err = json.Unmarshal(resp, &object); err != nil {
 				return nil, fmt.Errorf("error unmarshalling response: %w", err)
 			}
-		} else if err = json.Unmarshal(resp, &genericResponse); err == nil && genericResponse.Error != "" {
-			return nil, errors.New(genericResponse.Error + ": " + genericResponse.Result)
 		}
 	}
 
 	return resp, nil
+}
+
+// errorOrResult picks whichever part of a generic response explains a failure.
+func errorOrResult(response apiGenericResponse) string {
+	if response.Error != "" {
+		return response.Error
+	}
+
+	if response.Result != "" {
+		return response.Result
+	}
+
+	encoded, err := json.Marshal(response)
+	if err != nil {
+		return "unknown error"
+	}
+
+	return string(encoded)
 }
 
 // newRequest builds an *http.Request with the headers common to every DirectAdmin

@@ -1,6 +1,7 @@
 package directadmin
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -67,15 +68,20 @@ func (c *UserContext) cloudLinuxGetUsageCharts(period string, id string, format 
 	body.Set("command", "cloudlinux-charts")
 	body.Set("params[period]", period)
 	body.Set("params[format]", format)
-	body.Set("params[id]", id)
 	body.Set("csrftoken", csrfToken)
+
+	// A user session can only read its own stats, and the plugin rejects the request if
+	// the parameter is present but empty, so it is only sent when there is an ID to send.
+	if id != "" {
+		body.Set("params[id]", id)
+	}
 
 	var resp struct {
 		Chart  string `json:"chart"`
 		Result string `json:"result"`
 	}
 
-	if _, err = c.makeRequestOld(http.MethodPost, "PLUGINS_RESELLER/lvemanager_spa/index.raw?c=send-request", body, &resp); err != nil {
+	if _, err = c.makeRequestOld(http.MethodPost, c.cloudLinuxPluginEndpoint()+"?c=send-request", body, &resp); err != nil {
 		return "", err
 	}
 
@@ -109,6 +115,12 @@ type CloudLinuxUser struct {
 
 // CloudLinuxGetUsers retrieves all accessible CLoudLinux users with their resource limits.
 func (c *UserContext) CloudLinuxGetUsers() ([]*CloudLinuxUser, error) {
+	// cloudlinux-limits is an LVE Manager command, and the resource_usage plugin a user
+	// session has to use serves only that user's own stats.
+	if c.User.Config.UserType == AccountRoleUser {
+		return nil, errors.New("cloudlinux user limits are only available to reseller and admin sessions")
+	}
+
 	if err := c.CreateSession(); err != nil {
 		return nil, fmt.Errorf("failed to create user session: %w", err)
 	}
@@ -128,7 +140,7 @@ func (c *UserContext) CloudLinuxGetUsers() ([]*CloudLinuxUser, error) {
 		Users  []*CloudLinuxUser `json:"users"`
 	}
 
-	if _, err = c.makeRequestOld(http.MethodPost, "PLUGINS_RESELLER/lvemanager_spa/index.raw?c=send-request", body, &resp); err != nil {
+	if _, err = c.makeRequestOld(http.MethodPost, c.cloudLinuxPluginEndpoint()+"?c=send-request", body, &resp); err != nil {
 		return nil, err
 	}
 
@@ -141,7 +153,7 @@ func (c *UserContext) CloudLinuxGetUsers() ([]*CloudLinuxUser, error) {
 
 // cloudlinuxCreateCSRFToken creates a CSRF token for the CloudLinux plugin if one doesn't already exist.
 func (c *UserContext) cloudlinuxCreateCSRFToken() (string, error) {
-	const endpoint = "PLUGINS_RESELLER/lvemanager_spa/index.raw"
+	endpoint := c.cloudLinuxPluginEndpoint()
 
 	csrfToken := c.getCSRFToken(c.getRequestURLOld(endpoint))
 	if csrfToken != "" {
@@ -149,11 +161,16 @@ func (c *UserContext) cloudlinuxCreateCSRFToken() (string, error) {
 	}
 
 	// Retrieve CSRF token.
-	if _, err := c.makeRequestOld(http.MethodGet, "PLUGINS_RESELLER/lvemanager_spa/index.raw?a=cookie", nil, nil); err != nil {
+	if _, err := c.makeRequestOld(http.MethodGet, endpoint+"?a=cookie", nil, nil); err != nil {
 		return "", err
 	}
 
-	return c.getCSRFToken(c.getRequestURLOld(endpoint)), nil
+	csrfToken = c.getCSRFToken(c.getRequestURLOld(endpoint))
+	if csrfToken == "" {
+		return "", fmt.Errorf("no CSRF token was set for %v", endpoint)
+	}
+
+	return csrfToken, nil
 }
 
 // dataPoint represents a single time-series data point with multiple series values.
@@ -322,6 +339,26 @@ func parseCloudLinuxSVG(svgContent string) ([]*CloudLinuxChartData, error) {
 	return charts, nil
 }
 
+// cloudLinuxPluginEndpoint returns the CloudLinux endpoint for this session. The stats are
+// served by a different plugin depending on the account type: resellers get LVE Manager,
+// while a user reads their own through the resource_usage plugin. A server that has
+// disabled reseller LVE views can still be read as the user the stats belong to.
+func (c *UserContext) cloudLinuxPluginEndpoint() string {
+	if c.User.Config.UserType == AccountRoleUser {
+		return "PLUGINS/resource_usage/index.raw"
+	}
+
+	return "PLUGINS_RESELLER/lvemanager_spa/index.raw"
+}
+
+// abs returns the absolute value of a float64.
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // findTimestampForXPosition finds the timestamp corresponding to a given x position in the SVG.
 // It does this by finding the nearest data line and interpolating from its timestamps.
 func findTimestampForXPosition(svgID string, xPos float64, svgContent string) string {
@@ -361,14 +398,6 @@ func findTimestampForXPosition(svgID string, xPos float64, svgContent string) st
 	}
 
 	return closestTimestamp
-}
-
-// abs returns the absolute value of a float64.
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
 
 // extractUnitFromCloudLinuxChart extracts the unit suffix from a value string.

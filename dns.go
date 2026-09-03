@@ -62,17 +62,17 @@ func (c *UserContext) CreateDNSRecord(domain string, dnsRecord DNSRecord) error 
 	return nil
 }
 
-// DeleteDNSRecords (user) deletes all the specified DNS records for the session user.
-func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
+// DeleteDNSRecords (user) deletes all the specified DNS records for the given domain.
+func (c *UserContext) DeleteDNSRecords(domain string, dnsRecords ...DNSRecord) error {
 	var response apiGenericResponse
 
-	body := url.Values{}
+	body := url.Values{"domain": {domain}}
 	dnsRecordMap := make(map[string][]string)
 
 	for _, dnsRecord := range dnsRecords {
 		dnsType := strings.ToLower(dnsRecord.Type)
 
-		dnsRecordMap[dnsType] = append(dnsRecordMap[dnsType], fmt.Sprintf("name=%v&value=%v", dnsRecord.Name, dnsRecord.Value))
+		dnsRecordMap[dnsType] = append(dnsRecordMap[dnsType], dnsRecordSelector(dnsRecord))
 	}
 
 	for dnsRecordType, dnsRecordData := range dnsRecordMap {
@@ -90,6 +90,14 @@ func (c *UserContext) DeleteDNSRecords(dnsRecords ...DNSRecord) error {
 	}
 
 	return nil
+}
+
+// dnsRecordSelector builds the "name=X&value=Y" selector DirectAdmin expects in its recsN
+// parameters. Both halves are escaped because DirectAdmin re-parses the value as a query
+// string, so an unescaped & or = in a record would split into extra parameters and target
+// the wrong record.
+func dnsRecordSelector(dnsRecord DNSRecord) string {
+	return "name=" + url.QueryEscape(dnsRecord.Name) + "&value=" + url.QueryEscape(dnsRecord.Value)
 }
 
 // GetDNSRecords (user) returns the given domain's DNS records.
@@ -126,7 +134,7 @@ func (c *UserContext) UpdateDNSRecord(domain string, originalDNSRecord DNSRecord
 		"ttl":    {cast.ToString(rawDNSRecordData.TTL)},
 		"type":   {rawDNSRecordData.Type},
 		"value":  {rawDNSRecordData.Value},
-		strings.ToLower(originalDNSRecord.Type) + "recs0": {fmt.Sprintf("name=%v&value=%v", originalDNSRecord.Name, originalDNSRecord.Value)},
+		strings.ToLower(originalDNSRecord.Type) + "recs0": {dnsRecordSelector(originalDNSRecord)},
 	}
 
 	if _, err := c.makeRequestOld(http.MethodPost, "API_DNS_CONTROL?action=edit&action_pointers=yes", body, &response); err != nil {

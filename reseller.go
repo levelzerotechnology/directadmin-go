@@ -182,10 +182,6 @@ func (c *ResellerContext) GetMyUsersWithData(retrieveConfig bool, retrieveUsage 
 
 				user.Usage = *usage
 			}
-
-			mu.Lock()
-			users = append(users, user)
-			mu.Unlock()
 		}(user)
 	}
 
@@ -219,6 +215,45 @@ func (c *ResellerContext) GetUserConfig(username string) (*UserConfig, error) {
 	}
 
 	return &config, nil
+}
+
+// UserPackageInfo reports what a user's package really is. DirectAdmin sets package to
+// "custom" once an account's limits are edited away from its package, and records the
+// package it started from in original_package. Only the legacy config command returns
+// that field - the newer users/{name}/config endpoint omits it - so this uses the old
+// one deliberately.
+type UserPackageInfo struct {
+	// Package is what DirectAdmin currently reports, which may be "custom".
+	Package string
+
+	// OriginalPackage is the package the account was created from. Empty for accounts
+	// that were never customised, and occasionally for ones that were.
+	OriginalPackage string
+
+	// QuotaMB is the account's disk quota, Unlimited (-1) when unlimited.
+	QuotaMB int
+}
+
+// GetUserPackageInfo (reseller) returns the given user's package, the package it was
+// originally created from, and its disk quota.
+func (c *ResellerContext) GetUserPackageInfo(username string) (*UserPackageInfo, error) {
+	var raw struct {
+		Package         string `json:"package"`
+		OriginalPackage string `json:"original_package"`
+		Quota           string `json:"quota"`
+	}
+
+	if _, err := c.makeRequestOld(http.MethodGet, "API_SHOW_USER_CONFIG?user="+url.QueryEscape(username), nil, &raw); err != nil {
+		return nil, fmt.Errorf("failed to get user package info: %w", err)
+	}
+
+	// The legacy command reports every value as a string, and an unlimited quota as a word
+	// rather than a number, so parseNum handles it like every other legacy limit.
+	return &UserPackageInfo{
+		Package:         raw.Package,
+		OriginalPackage: raw.OriginalPackage,
+		QuotaMB:         parseNum(raw.Quota),
+	}, nil
 }
 
 // GetUserUsage (reseller) returns the given user's usage.
@@ -258,17 +293,23 @@ func (c *ResellerContext) toggleUserSuspension(suspend bool, usernames ...string
 		body.Set("suspend", "Unsuspend")
 	}
 
-	counter := 0
-	for _, username := range usernames {
-		body.Set("select"+cast.ToString(counter), username)
+	for index, username := range usernames {
+		body.Set("select"+cast.ToString(index), username)
+	}
+
+	action := "unsuspend"
+	if suspend {
+		action = "suspend"
 	}
 
 	if _, err := c.makeRequestOld(http.MethodPost, "API_SELECT_USERS", body, &response); err != nil {
-		return err
+		return fmt.Errorf("failed to %v user(s): %w", action, err)
 	}
 
-	if response.Success != "User suspended" {
-		return fmt.Errorf("failed to delete user(s): %v", response.Result)
+	// DirectAdmin words this success differently per direction, so any success is accepted
+	// rather than compared - makeRequestOld already fails on an error response.
+	if response.Success == "" {
+		return fmt.Errorf("failed to %v user(s): %v", action, errorOrResult(response))
 	}
 
 	return nil
