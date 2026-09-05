@@ -2,35 +2,79 @@ package directadmin
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 type FileMetadata struct {
-	AccessTime time.Time `json:"accessTime"`
-	BirthTime  time.Time `json:"birthTime"`
-	ChangeTime time.Time `json:"changeTime"`
-	GID        int       `json:"gid"`
-	Group      string    `json:"group"`
-	Mode       string    `json:"mode"`
-	ModifyTime time.Time `json:"modifyTime"`
-	Name       string    `json:"name"`
-	SizeBytes  int       `json:"sizeBytes"`
-	Symlink    struct {
-		Resolved string `json:"resolved"`
-		Target   string `json:"target"`
-	} `json:"symlink"`
-	Type     string `json:"type"`
-	UID      int    `json:"uid"`
-	UnixMode int    `json:"unixMode"`
-	User     string `json:"user"`
+	AccessTime      time.Time `json:"accessTime"`
+	BirthTime       time.Time `json:"birthTime"`
+	ChangeTime      time.Time `json:"changeTime"`
+	GID             int       `json:"gid"`
+	Group           string    `json:"group"`
+	Mode            string    `json:"mode"`
+	ModifyTime      time.Time `json:"modifyTime"`
+	Name            string    `json:"name"`
+	SizeBytes       int       `json:"sizeBytes"`
+	SizeOnDiskBytes int       `json:"sizeOnDiskBytes"`
+	Symlink         Symlink   `json:"symlink"`
+	Type            string    `json:"type"`
+	UID             int       `json:"uid"`
+	UnixMode        int       `json:"unixMode"`
+	User            string    `json:"user"`
+}
+
+// IsDir reports whether the entry is a directory.
+func (f FileMetadata) IsDir() bool {
+	return f.Type == "dir"
+}
+
+// Symlink describes where an entry points, if anywhere.
+//
+// DirectAdmin sends this two ways: a plain false for an ordinary file, and an object with
+// the target for a link. Unmarshalled by hand because a struct alone cannot accept the
+// bool, which is what made every listing fail to parse.
+type Symlink struct {
+	IsSymlink bool   `json:"-"`
+	Resolved  string `json:"resolved"`
+	Target    string `json:"target"`
+}
+
+func (s *Symlink) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte("false")) || bytes.Equal(data, []byte("null")) {
+		*s = Symlink{}
+
+		return nil
+	}
+
+	if bytes.Equal(data, []byte("true")) {
+		*s = Symlink{IsSymlink: true}
+
+		return nil
+	}
+
+	// The named type avoids recursing back into this method.
+	type plain Symlink
+
+	var target plain
+	if err := json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("error unmarshalling symlink: %w", err)
+	}
+
+	*s = Symlink(target)
+	s.IsSymlink = true
+
+	return nil
 }
 
 // CreateArchive (user) creates a zip of the given files on the server.
@@ -153,15 +197,52 @@ func (c *UserContext) ExtractArchive(destinationDir string, source string, merge
 	return nil
 }
 
-// GetFileMetadata (user) retrieves file metadata for the given path.
-func (c *UserContext) GetFileMetadata(filePath string) (*FileMetadata, error) {
-	var response *FileMetadata
+// ListDirectory (user) lists the entries in the given directory.
+//
+// Paths are absolute within the user's home, e.g. "/domains/example.com/public_html".
+func (c *UserContext) ListDirectory(path string) ([]FileMetadata, error) {
+	var response struct {
+		CanonicalPath string         `json:"canonicalPath"`
+		Files         []FileMetadata `json:"files"`
+	}
 
-	if _, err := c.makeRequestNew(http.MethodGet, "filemanager/metadata?path="+filePath, nil, &response); err != nil {
+	if _, err := c.makeRequestNew(http.MethodGet,
+		"filemanager/list?path="+url.QueryEscape(path), nil, &response); err != nil {
 		return nil, err
 	}
 
-	return response, nil
+	return response.Files, nil
+}
+
+// ErrFileNotFound reports a path that is not there.
+var ErrFileNotFound = errors.New("file not found")
+
+// GetFileMetadata (user) retrieves file metadata for the given path.
+//
+// Answered by listing the parent directory and picking the entry out, because DirectAdmin
+// has no per-path metadata endpoint: /api/filemanager/metadata does not exist, and asking
+// for it returns the control panel's own HTML with a 200, which surfaced as "error
+// unmarshalling response: invalid character '<'" for every call.
+func (c *UserContext) GetFileMetadata(filePath string) (*FileMetadata, error) {
+	filePath = strings.TrimSuffix(filePath, "/")
+
+	parent, name := path.Split(filePath)
+	if name == "" {
+		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, filePath)
+	}
+
+	entries, err := c.ListDirectory(strings.TrimSuffix(parent, "/"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		if entry.Name == name {
+			return &entry, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%w: %s", ErrFileNotFound, filePath)
 }
 
 // MovePath (user) moves the given file or directory to the new destination.
