@@ -16,14 +16,8 @@ const (
 
 type API struct {
 	cache struct {
-		domains            map[string]Domain // Domain name is key.
-		domainsMutex       *sync.Mutex
-		emailAccounts      map[string]EmailAccount // Domain name is key.
-		emailAccountsMutex *sync.Mutex
-		packages           map[string]Package // Package name is key.
-		packagesMutex      *sync.Mutex
-		users              map[string]User // Username is key.
-		usersMutex         *sync.Mutex
+		domains      map[string]Domain // Domain name is key.
+		domainsMutex sync.RWMutex
 	}
 	cacheEnabled bool
 	debug        bool
@@ -45,6 +39,7 @@ type (
 	}
 )
 
+// New returns an API for the given server.
 func New(serverURL string, timeout time.Duration, cacheEnabled bool, debug bool) (*API, error) {
 	parsedURL, err := url.ParseRequestURI(serverURL)
 	if err != nil {
@@ -64,12 +59,12 @@ func New(serverURL string, timeout time.Duration, cacheEnabled bool, debug bool)
 
 	if cacheEnabled {
 		api.cache.domains = make(map[string]Domain)
-		api.cache.emailAccounts = make(map[string]EmailAccount)
-		api.cache.packages = make(map[string]Package)
-		api.cache.users = make(map[string]User)
 	}
 
-	api.httpClient = &http.Client{Timeout: timeout}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = timeout
+
+	api.httpClient = &http.Client{Transport: transport}
 
 	return &api, nil
 }

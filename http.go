@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -36,9 +38,12 @@ func (c *UserContext) getRequestURLOld(endpoint string) string {
 	return fmt.Sprintf("%s/CMD_%s", c.api.url, endpoint)
 }
 
-// makeRequest is the underlying function for HTTP requests. It handles debugging statements, and simple error handling.
-// It returns the response status code alongside the body; a non-2xx code is also surfaced as an error.
-func (c *UserContext) makeRequest(req *http.Request) (int, []byte, error) {
+// send attaches the session's cookies and credentials, performs the request, and returns
+// the response with its body still unread. Callers close the body.
+//
+// The debug record is always returned and never printed here, so whoever consumes the body
+// can add it before printing. Callers print it unconditionally.
+func (c *UserContext) send(req *http.Request) (*http.Response, *httpDebug, error) {
 	var debugCookies []string
 
 	cookiesToSet := c.cookieJar.Cookies(req.URL)
@@ -57,13 +62,12 @@ func (c *UserContext) makeRequest(req *http.Request) (int, []byte, error) {
 		}
 	}
 
-	debug := httpDebug{
+	debug := &httpDebug{
 		Cookies:  debugCookies,
 		Endpoint: getPathWithQuery(req),
 		Method:   req.Method,
 		Start:    time.Now(),
 	}
-	defer c.api.printDebugHTTP(&debug)
 
 	if !sessionCookieSet {
 		req.SetBasicAuth(c.credentials.username, c.credentials.passkey)
@@ -71,9 +75,8 @@ func (c *UserContext) makeRequest(req *http.Request) (int, []byte, error) {
 
 	resp, err := c.api.httpClient.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return nil, debug, err
 	}
-	defer resp.Body.Close()
 
 	if c.api.debug {
 		debug.Code = resp.StatusCode
@@ -92,21 +95,31 @@ func (c *UserContext) makeRequest(req *http.Request) (int, []byte, error) {
 		c.cookieJar.SetCookies(req.URL, []*http.Cookie{cookie})
 	}
 
-	var responseBytes []byte
+	return resp, debug, nil
+}
 
-	if resp.Body != nil {
-		responseBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return resp.StatusCode, nil, fmt.Errorf("error reading response body: %w", err)
-		}
+// makeRequest is the underlying function for HTTP requests. It handles debugging statements, and simple error handling.
+// It returns the response status code alongside the body; a non-2xx code is also surfaced as an error.
+func (c *UserContext) makeRequest(req *http.Request) (int, []byte, error) {
+	resp, debug, err := c.send(req)
+	defer c.api.printDebugHTTP(debug)
 
-		if c.api.debug {
-			if len(responseBytes) > debugBodyLimit {
-				debug.BodyTruncated = true
-				debug.Body = string(responseBytes[:debugBodyLimit])
-			} else {
-				debug.Body = string(responseBytes)
-			}
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+
+	responseBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	if c.api.debug {
+		if len(responseBytes) > debugBodyLimit {
+			debug.BodyTruncated = true
+			debug.Body = string(responseBytes[:debugBodyLimit])
+		} else {
+			debug.Body = string(responseBytes)
 		}
 	}
 
@@ -115,6 +128,71 @@ func (c *UserContext) makeRequest(req *http.Request) (int, []byte, error) {
 	}
 
 	return resp.StatusCode, responseBytes, nil
+}
+
+// makeRequestStream hands back the response body unread, for payloads too large to hold in
+// memory: a site archive, a database dump. The caller closes it.
+//
+// A failure is read and turned into an error as usual, since the explanation is in the body
+// and the body of a failure is small.
+func (c *UserContext) makeRequestStream(req *http.Request) (io.ReadCloser, error) {
+	resp, debug, err := c.send(req)
+
+	// Printed on return rather than when the body is done with: the timing covers the round
+	// trip, and a streamed body is never held to print anyway.
+	defer c.api.printDebugHTTP(debug)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode/100 != 2 {
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, debugBodyLimit))
+		debug.Body = string(body)
+
+		return nil, fmt.Errorf("unexpected status code: %d: %s", resp.StatusCode, body)
+	}
+
+	return resp.Body, nil
+}
+
+// peekLimit is how much of a streamed body is held to check it isn't an error document.
+const peekLimit = 1024
+
+// checkStreamError guards a streamed download against the old API's habit of reporting
+// failures as JSON with a 200.
+//
+// Only the first peekLimit bytes are held, and they are handed back with the rest of the
+// stream behind them. A dump starts with a comment or gzip magic, never a JSON object, so a
+// leading '{' is proof this is an error rather than a download.
+func checkStreamError(body io.ReadCloser) (io.ReadCloser, error) {
+	peeked, err := io.ReadAll(io.LimitReader(body, peekLimit))
+	if err != nil {
+		body.Close()
+
+		return nil, fmt.Errorf("error reading response: %w", err)
+	}
+
+	if !bytes.HasPrefix(bytes.TrimLeft(peeked, " \t\r\n"), []byte("{")) {
+		return struct {
+			io.Reader
+			io.Closer
+		}{io.MultiReader(bytes.NewReader(peeked), body), body}, nil
+	}
+
+	defer body.Close()
+
+	// The peek can cut a long document short, so a parse failure here is expected rather
+	// than surprising: report what arrived.
+	var response apiGenericResponse
+
+	if err = json.Unmarshal(peeked, &response); err != nil || response.Error == "" {
+		return nil, fmt.Errorf("unexpected json response: %s", peeked)
+	}
+
+	return nil, errors.New(errorOrResult(response))
 }
 
 // makeRequestNew supports DirectAdmin's new API.
@@ -229,12 +307,18 @@ func (c *UserContext) newRequest(ctx context.Context, method string, url string,
 	return req, nil
 }
 
-// uploadFile functions for either the old or new DA API.
-func (c *UserContext) uploadFile(method string, endpoint string, data []byte, object any, contentType string) ([]byte, error) {
-	req, err := c.newRequest(context.Background(), method, c.api.url+endpoint, bytes.NewBuffer(data))
+// uploadStream uploads a body that is read as it is sent rather than held whole, for
+// either the old or new DA API.
+//
+// size is the exact body length; passing it sets Content-Length, so the request is not sent
+// with chunked encoding.
+func (c *UserContext) uploadStream(method string, endpoint string, body io.Reader, size int64, object any, contentType string) ([]byte, error) {
+	req, err := c.newRequest(context.Background(), method, c.api.url+endpoint, body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.ContentLength = size
 
 	query := req.URL.Query()
 	req.Header.Set("Accept", "application/json")
@@ -253,6 +337,61 @@ func (c *UserContext) uploadFile(method string, endpoint string, data []byte, ob
 	}
 
 	return resp, nil
+}
+
+// multipartFileBody frames a reader as a one-file multipart form without buffering it.
+//
+// The part header and trailer come from multipart.Writer rather than being written out by
+// hand, so the framing is the standard library's, and the exact body length falls out of
+// their sizes plus the content's.
+func multipartFileBody(field, filename string, content io.Reader) (io.Reader, int64, string, error) {
+	size, err := readerSize(content)
+	if err != nil {
+		return nil, 0, "", err
+	}
+
+	var framing bytes.Buffer
+
+	writer := multipart.NewWriter(&framing)
+
+	// Writing into a bytes.Buffer, so neither of these can fail.
+	_, _ = writer.CreateFormFile(field, filename)
+	header := append([]byte(nil), framing.Bytes()...)
+
+	framing.Reset()
+	_ = writer.Close()
+	trailer := framing.Bytes()
+
+	body := io.MultiReader(bytes.NewReader(header), content, bytes.NewReader(trailer))
+
+	return body, int64(len(header)) + size + int64(len(trailer)), writer.FormDataContentType(), nil
+}
+
+// readerSize reports the exact length of an upload body, which is needed up front for
+// Content-Length. Everything worth uploading self-describes: a *bytes.Reader, *bytes.Buffer
+// or *strings.Reader knows its length, an *os.File can stat. Anything else is rejected
+// rather than buffered into memory, which is the thing this path exists to avoid.
+func readerSize(content io.Reader) (int64, error) {
+	switch c := content.(type) {
+	case interface{ Len() int }:
+		return int64(c.Len()), nil
+	case *os.File:
+		info, err := c.Stat()
+		if err != nil {
+			return 0, fmt.Errorf("failed to stat upload body: %w", err)
+		}
+
+		// What's left to read, not the file's size: a caller that has already sniffed the
+		// first bytes would otherwise promise more than it sends.
+		offset, err := c.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return 0, fmt.Errorf("failed to find position in upload body: %w", err)
+		}
+
+		return info.Size() - offset, nil
+	default:
+		return 0, fmt.Errorf("upload body of unknown length (%T): read it into a bytes.Reader, or pass an *os.File", content)
+	}
 }
 
 func (a *API) printDebugHTTP(debug *httpDebug) {

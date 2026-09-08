@@ -47,7 +47,7 @@ type (
 		AdminUsername      string `url:"admin_username"`
 		AutoUpgrade        bool   `url:"en_auto_upgrade"`
 		AutoUpgradePlugins bool   `url:"auto_upgrade_plugins"`
-		AutoUpgradeThemes  bool   `url:"auto_upgrade_plugins"`
+		AutoUpgradeThemes  bool   `url:"auto_upgrade_themes"`
 		DatabaseName       string `url:"softdb"`
 		DatabasePrefix     string `url:"dbprefix"` // Optional.
 		Directory          string `url:"softdirectory"`
@@ -314,4 +314,177 @@ func (c *UserContext) SoftaculousUninstallScript(installID string, deleteFiles b
 	}
 
 	return nil
+}
+
+// Core auto-upgrade levels for an existing installation, sent as auto_upgrade_core.
+const (
+	SoftaculousAutoUpgradeOff   = "0"
+	SoftaculousAutoUpgradeMajor = "1"
+	SoftaculousAutoUpgradeMinor = "2"
+)
+
+// SoftaculousInstallationSettings is the settings block returned when an installation is
+// saved.
+//
+// The boolean-ish fields arrive inconsistently: an unset flag comes back as an empty
+// string while a set one comes back as the number 1 or the boolean true, so they are held
+// as any and read through the accessors rather than decoded straight into bool.
+type SoftaculousInstallationSettings struct {
+	ID       string `json:"insid"`
+	ScriptID int    `json:"sid"`
+	Domain   string `json:"softdomain"`
+	Path     string `json:"softpath"`
+
+	DisableWPCron      any `json:"disable_wp_cron"`
+	AutoUpgradePlugins any `json:"auto_upgrade_plugins"`
+	AutoUpgradeThemes  any `json:"auto_upgrade_themes"`
+
+	// AutoUpgrade is the core upgrade level. Note the asymmetry: it is written as
+	// auto_upgrade_core and read back as eu_auto_upgrade. Writing eu_auto_upgrade is
+	// accepted and silently ignored.
+	AutoUpgrade any `json:"eu_auto_upgrade"`
+
+	// Set by Softaculous once wp-cron is disabled and it has installed a system cron in
+	// its place. Empty while WordPress is still running its own pseudo-cron, so it doubles
+	// as proof the change took.
+	CronCommand string `json:"cron_command"`
+	CronMinute  string `json:"cron_min"`
+	CronHour    string `json:"cron_hour"`
+}
+
+// WPCronDisabled reports whether WordPress's own pseudo-cron is turned off, which is what
+// makes Softaculous install a real system cron in its place.
+func (s SoftaculousInstallationSettings) WPCronDisabled() bool {
+	return cast.ToBool(s.DisableWPCron)
+}
+
+// PluginsAutoUpgrade reports whether plugin auto-upgrades are on.
+func (s SoftaculousInstallationSettings) PluginsAutoUpgrade() bool {
+	return cast.ToBool(s.AutoUpgradePlugins)
+}
+
+// ThemesAutoUpgrade reports whether theme auto-upgrades are on.
+func (s SoftaculousInstallationSettings) ThemesAutoUpgrade() bool {
+	return cast.ToBool(s.AutoUpgradeThemes)
+}
+
+// AutoUpgradeLevel reports the core upgrade level as one of the SoftaculousAutoUpgrade
+// constants.
+func (s SoftaculousInstallationSettings) AutoUpgradeLevel() string {
+	// Off arrives as an empty string or false rather than as "0".
+	if level := cast.ToString(s.AutoUpgrade); level != "" && level != "false" {
+		return level
+	}
+
+	return SoftaculousAutoUpgradeOff
+}
+
+// SystemCronInstalled reports whether Softaculous has put a real cron in place of
+// WordPress's pseudo-cron.
+func (s SoftaculousInstallationSettings) SystemCronInstalled() bool {
+	return s.CronCommand != ""
+}
+
+// SoftaculousInstallationDefaults are the settings a managed installation should carry.
+type SoftaculousInstallationDefaults struct {
+	// AutoUpgradeCore is one of the SoftaculousAutoUpgrade constants. Empty leaves it
+	// alone.
+	AutoUpgradeCore string
+
+	AutoUpgradePlugins bool
+	AutoUpgradeThemes  bool
+
+	// DisableWPCron swaps WordPress's pseudo-cron for a system cron Softaculous installs,
+	// so scheduled work stops depending on a visitor arriving and stops costing a PHP
+	// request on every page view.
+	DisableWPCron bool
+}
+
+// softaculousSave posts to the installation endpoint and returns the settings it reports.
+//
+// Only the supplied fields are written; anything omitted keeps its current value, so a
+// save with nothing set is a safe way to read the current settings.
+func (c *UserContext) softaculousSave(installID string, scriptName string, fields url.Values) (*SoftaculousInstallationSettings, error) {
+	if installID == "" {
+		return nil, errors.New("missing installation id")
+	}
+
+	if scriptName == "" {
+		return nil, errors.New("missing script name")
+	}
+
+	var response struct {
+		Done     any                             `json:"done"`
+		Error    map[string]string               `json:"error"`
+		Settings SoftaculousInstallationSettings `json:"settings"`
+	}
+
+	body := url.Values{}
+	for key, values := range fields {
+		for _, value := range values {
+			body.Add(key, value)
+		}
+	}
+
+	body.Set("insid", installID)
+	body.Set("save", "1")
+
+	// Softaculous requires a genuine session ID.
+	if err := c.CreateSession(); err != nil {
+		return nil, fmt.Errorf("failed to create user session: %w", err)
+	}
+
+	endpoint := "PLUGINS/softaculous/index.raw?act=" + url.QueryEscape(strings.ToLower(scriptName)) + "&api=json"
+
+	if _, err := c.makeRequestOld(http.MethodPost, endpoint, body, &response); err != nil {
+		return nil, err
+	}
+
+	if len(response.Error) > 0 {
+		return nil, fmt.Errorf("softaculous rejected the save: %v", response.Error)
+	}
+
+	// done is only present on a save that had something to change. A read, which is a save
+	// with no fields, omits it, so requiring it would fail every read.
+	if len(fields) > 0 && !cast.ToBool(response.Done) {
+		return nil, errors.New("softaculous did not report success")
+	}
+
+	return &response.Settings, nil
+}
+
+// SoftaculousReadSettings (user) returns an installation's current settings.
+//
+// Softaculous offers no read-only view of these fields, so this is a save with nothing to
+// change. Omitted fields keep their values, which is what makes that safe.
+func (c *UserContext) SoftaculousReadSettings(installID string, scriptName string) (*SoftaculousInstallationSettings, error) {
+	return c.softaculousSave(installID, scriptName, nil)
+}
+
+// SoftaculousApplyDefaults (user) writes an installation's upgrade and cron settings.
+//
+// All of them go in one call. The response describes the installation as it stood
+// beforehand, so it is not proof the write landed; call SoftaculousReadSettings after if
+// confirmation is needed.
+func (c *UserContext) SoftaculousApplyDefaults(installID string, scriptName string, defaults SoftaculousInstallationDefaults) (*SoftaculousInstallationSettings, error) {
+	fields := url.Values{}
+
+	if defaults.AutoUpgradeCore != "" {
+		fields.Set("auto_upgrade_core", defaults.AutoUpgradeCore)
+	}
+
+	// Written whether on or off, otherwise a setting could never be turned back off.
+	fields.Set("auto_upgrade_plugins", boolField(defaults.AutoUpgradePlugins))
+	fields.Set("auto_upgrade_themes", boolField(defaults.AutoUpgradeThemes))
+	fields.Set("disable_wp_cron", boolField(defaults.DisableWPCron))
+
+	return c.softaculousSave(installID, scriptName, fields)
+}
+
+func boolField(on bool) string {
+	if on {
+		return "1"
+	}
+
+	return "0"
 }

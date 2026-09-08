@@ -2,14 +2,13 @@ package directadmin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -152,16 +151,25 @@ func (c *UserContext) DeleteFiles(skipTrash bool, files ...string) error {
 	return nil
 }
 
-// DownloadFile (user) downloads the given file path from the server.
-func (c *UserContext) DownloadFile(filePath string) ([]byte, error) {
-	return c.makeRequestNew(http.MethodGet, "filemanager/download?path="+filePath, nil, nil)
+// DownloadFile (user) downloads the given file path from the server as a stream, so a file
+// of any size can be handled. The caller closes it.
+//
+// Wrap it in ReadAll to get the whole thing as bytes.
+func (c *UserContext) DownloadFile(filePath string) (io.ReadCloser, error) {
+	return c.downloadStream(http.MethodGet, c.getRequestURLNew("filemanager/download?path="+filePath))
 }
 
-// DownloadFileToDisk (user) wraps DownloadFile and writes the output to the given path.
-func (c *UserContext) DownloadFileToDisk(filePath string, outputPath string) error {
-	return writeToDisk(outputPath, func() ([]byte, error) {
-		return c.DownloadFile(filePath)
-	})
+// downloadStream performs a request and hands back the body unread. Takes a full URL, so
+// either API can use it.
+func (c *UserContext) downloadStream(method string, url string) (io.ReadCloser, error) {
+	req, err := c.newRequest(context.Background(), method, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	return c.makeRequestStream(req)
 }
 
 // ExtractArchive (user) unzips the given file path on the server.
@@ -231,7 +239,12 @@ func (c *UserContext) GetFileMetadata(filePath string) (*FileMetadata, error) {
 		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, filePath)
 	}
 
-	entries, err := c.ListDirectory(strings.TrimSuffix(parent, "/"))
+	// Trimming the parent's trailing slash would leave a top-level entry with no path.
+	if parent != "/" {
+		parent = strings.TrimSuffix(parent, "/")
+	}
+
+	entries, err := c.ListDirectory(parent)
 	if err != nil {
 		return nil, err
 	}
@@ -264,27 +277,22 @@ func (c *UserContext) MovePath(source string, destination string, overwrite bool
 	return nil
 }
 
-// UploadFile uploads the provided byte data as a file for the session user.
-func (c *UserContext) UploadFile(uploadToPath string, fileData []byte, overwrite bool) error {
+// UploadFile (user) uploads content as a file for the session user, reading it as it is
+// sent, so a file of any size can be uploaded.
+//
+// content must be able to report its length: a *bytes.Reader (bytes.NewReader(data)),
+// *bytes.Buffer, *strings.Reader or *os.File.
+func (c *UserContext) UploadFile(uploadToPath string, content io.Reader, overwrite bool) error {
 	// Prepend / to uploadToPath if it doesn't exist.
 	if uploadToPath[0] != '/' {
 		uploadToPath = "/" + uploadToPath
 	}
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+	name := filepath.Base(uploadToPath)
 
-	part, err := writer.CreateFormFile("file", filepath.Base(uploadToPath))
+	body, length, contentType, err := multipartFileBody("file", name, content)
 	if err != nil {
-		return fmt.Errorf("creating form file: %w", err)
-	}
-
-	if _, err = part.Write(fileData); err != nil {
-		return fmt.Errorf("writing file data: %w", err)
-	}
-
-	if err = writer.Close(); err != nil {
-		return fmt.Errorf("finalizing form data: %w", err)
+		return err
 	}
 
 	overwriteQuery := "false"
@@ -292,73 +300,22 @@ func (c *UserContext) UploadFile(uploadToPath string, fileData []byte, overwrite
 		overwriteQuery = "true"
 	}
 
-	// Now use this content type which includes the boundary.
-	if _, err = c.uploadFile(http.MethodPost, "/api/filemanager-actions/upload?dir="+filepath.Dir(uploadToPath)+"&overwrite="+overwriteQuery+"&name="+filepath.Base(uploadToPath), body.Bytes(), nil, writer.FormDataContentType()); err != nil {
+	if _, err = c.uploadStream(http.MethodPost, "/api/filemanager-actions/upload?dir="+filepath.Dir(uploadToPath)+"&overwrite="+overwriteQuery+"&name="+name, body, length, nil, contentType); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// UploadFileFromDisk (user) uploads the provided file for the session user.
+// ReadAll reads and closes a stream returned by DownloadFile or ExportDatabase, for
+// payloads small enough to hold in memory.
 //
-// Example: UploadFileFromDisk("/domains/domain.tld/public_html/file.zip", "file.zip").
-func (c *UserContext) UploadFileFromDisk(uploadToPath string, localFilePath string, overwrite bool) error {
-	var err error
-
-	localFilePath, err = filepath.Abs(localFilePath)
+// Example: data, err := directadmin.ReadAll(user.DownloadFile("/path/file.txt")).
+func ReadAll(stream io.ReadCloser, err error) ([]byte, error) {
 	if err != nil {
-		return fmt.Errorf("failed to resolve file: %w", err)
+		return nil, err
 	}
+	defer stream.Close()
 
-	file, err := os.Open(localFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	fileData, err := io.ReadAll(file)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-
-	return c.UploadFile(uploadToPath, fileData, overwrite)
-}
-
-// writeToDisk wraps a function that returns data and writes the output to the given path.
-// It handles file creation, cleanup on failure, and proper error handling.
-func writeToDisk(outputPath string, dataFunc func() ([]byte, error)) error {
-	if outputPath == "" {
-		return errors.New("no file path provided")
-	}
-
-	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
-		return fmt.Errorf("file already exists: %s", outputPath)
-	}
-
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer file.Close()
-
-	defer func() {
-		if err != nil {
-			fileRemoveErr := os.Remove(outputPath)
-			if fileRemoveErr != nil {
-				err = fmt.Errorf("%w: %w", err, fileRemoveErr)
-			}
-		}
-	}()
-
-	data, err := dataFunc()
-	if err != nil {
-		return err
-	}
-
-	if _, err = file.Write(data); err != nil {
-		return fmt.Errorf("error writing to file: %w", err)
-	}
-
-	return nil
+	return io.ReadAll(stream)
 }

@@ -104,11 +104,9 @@ func (c *UserContext) CreateDomain(domain Domain) error {
 
 	// Cache the domain.
 	if c.api.cacheEnabled {
-		go func() {
-			c.api.cache.domainsMutex.Lock()
-			c.api.cache.domains[domain.Domain] = domain
-			c.api.cache.domainsMutex.Unlock()
-		}()
+		c.api.cache.domainsMutex.Lock()
+		c.api.cache.domains[domain.Domain] = domain
+		c.api.cache.domainsMutex.Unlock()
 	}
 
 	return nil
@@ -143,11 +141,11 @@ func (c *UserContext) DeleteDomains(deleteData bool, domains ...string) error {
 
 	// remove domains from cache
 	if c.api.cacheEnabled {
+		c.api.cache.domainsMutex.Lock()
 		for _, domain := range domains {
-			c.api.cache.domainsMutex.Lock()
 			delete(c.api.cache.domains, domain)
-			c.api.cache.domainsMutex.Unlock()
 		}
+		c.api.cache.domainsMutex.Unlock()
 	}
 
 	return nil
@@ -157,7 +155,11 @@ func (c *UserContext) DeleteDomains(deleteData bool, domains ...string) error {
 func (c *UserContext) GetDomain(domainName string) (Domain, error) {
 	// check if domain is in cache
 	if c.api.cacheEnabled {
-		if cachedDomain, ok := c.api.cache.domains[domainName]; ok {
+		c.api.cache.domainsMutex.RLock()
+		cachedDomain, ok := c.api.cache.domains[domainName]
+		c.api.cache.domainsMutex.RUnlock()
+
+		if ok {
 			return cachedDomain, nil
 		}
 	}
@@ -215,7 +217,11 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 
 		// Check if domainToProcess is in the cache.
 		if c.api.cacheEnabled {
-			if cachedDomain, ok := c.api.cache.domains[domainToProcess.Domain]; ok {
+			c.api.cache.domainsMutex.RLock()
+			cachedDomain, ok := c.api.cache.domains[domainToProcess.Domain]
+			c.api.cache.domainsMutex.RUnlock()
+
+			if ok {
 				mu.Lock()
 				domains = append(domains, cachedDomain)
 				mu.Unlock()
@@ -255,11 +261,11 @@ func (c *UserContext) GetDomains() ([]Domain, error) {
 
 			// Cache domain.
 			if c.api.cacheEnabled {
-				go func(domainToCache Domain) {
-					c.api.cache.domainsMutex.Lock()
-					c.api.cache.domains[domainToCache.Domain] = domainToCache
-					c.api.cache.domainsMutex.Unlock()
-				}(rawDomainData.translate())
+				domainToCache := rawDomainData.translate()
+
+				c.api.cache.domainsMutex.Lock()
+				c.api.cache.domains[domainToCache.Domain] = domainToCache
+				c.api.cache.domainsMutex.Unlock()
 			}
 		}(domainToProcess)
 	}

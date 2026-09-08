@@ -1,9 +1,8 @@
 package directadmin
 
 import (
-	"bytes"
 	"fmt"
-	"mime/multipart"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -101,16 +100,13 @@ func (c *UserContext) DeleteDatabase(databaseName string) error {
 	return nil
 }
 
-// DownloadDatabase (user) retrieves a database by name and format from the server and returns its data as a byte slice.
-// The method appends the username and ensures the file uses a valid DatabaseFormat (gz or sql).
-// Returns an error if the format is invalid or the download request fails.
-func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat) ([]byte, error) {
-	name = name + "." + string(format)
-
-	if !strings.Contains(name, c.GetMyUsername()+"_") {
-		name = c.GetMyUsername() + "_" + name
-	}
-
+// DownloadDatabase (user) retrieves a database by name and format from the server as a
+// stream. The caller closes it. The method appends the username and ensures the file uses a
+// valid DatabaseFormat (gz or sql).
+//
+// The old API reports failures as JSON with a 200, so the head of the stream is checked
+// before it is handed back.
+func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat) (io.ReadCloser, error) {
 	switch format {
 	case DatabaseFormatGZ, DatabaseFormatSQL:
 		break
@@ -118,30 +114,28 @@ func (c *UserContext) DownloadDatabase(name string, format DatabaseFormat) ([]by
 		return nil, fmt.Errorf("invalid database format: %v", format)
 	}
 
-	response, err := c.makeRequestOld(http.MethodPost, "DB/"+name, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download database: %w", err)
+	name = name + "." + string(format)
+
+	if !strings.Contains(name, c.GetMyUsername()+"_") {
+		name = c.GetMyUsername() + "_" + name
 	}
 
-	return response, nil
-}
-
-func (c *UserContext) DownloadDatabaseToDisk(name string, format DatabaseFormat, outputPath string) error {
-	return writeToDisk(outputPath, func() ([]byte, error) {
-		return c.DownloadDatabase(name, format)
-	})
-}
-
-// ExportDatabase (user) returns an export of the given database.
-func (c *UserContext) ExportDatabase(databaseName string, gzip bool) ([]byte, error) {
-	databaseName = c.addUsernamePrefix(databaseName)
-
-	export, err := c.makeRequestNew(http.MethodGet, "db-manage/databases/"+databaseName+"/export?gzip="+strconv.FormatBool(gzip), nil, nil)
+	body, err := c.downloadStream(http.MethodPost, c.getRequestURLOld("DB/"+name)+"?json=yes")
 	if err != nil {
 		return nil, err
 	}
 
-	return export, nil
+	return checkStreamError(body)
+}
+
+// ExportDatabase (user) returns an export of the given database as a stream, since a dump
+// routinely runs to hundreds of megabytes. The caller closes it.
+//
+// Wrap it in ReadAll to get the whole thing as bytes.
+func (c *UserContext) ExportDatabase(databaseName string, gzip bool) (io.ReadCloser, error) {
+	databaseName = c.addUsernamePrefix(databaseName)
+
+	return c.downloadStream(http.MethodGet, c.getRequestURLNew("db-manage/databases/"+databaseName+"/export?gzip="+strconv.FormatBool(gzip)))
 }
 
 // GetDatabase (user) returns the given database.
@@ -192,27 +186,20 @@ func (c *UserContext) CreatePHPMyAdminLoginURL() (string, error) {
 	return response.URL, nil
 }
 
-// ImportDatabase (user) imports the given database export into the given database.
-func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase bool, sql []byte) error {
+// ImportDatabase (user) imports the given dump into the given database, reading it as it is
+// sent, so a dump of any size can be imported.
+//
+// sql must be able to report its length: a *bytes.Reader (bytes.NewReader(data)),
+// *bytes.Buffer, *strings.Reader or *os.File.
+func (c *UserContext) ImportDatabase(databaseName string, emptyExistingDatabase bool, sql io.Reader) error {
 	databaseName = c.addUsernamePrefix(databaseName)
 
-	var byteBuffer bytes.Buffer
-	multipartWriter := multipart.NewWriter(&byteBuffer)
-
-	formFile, err := multipartWriter.CreateFormFile("sqlfile", "filename")
+	body, length, contentType, err := multipartFileBody("sqlfile", "filename", sql)
 	if err != nil {
-		return fmt.Errorf("failed to create form file: %w", err)
+		return err
 	}
 
-	if _, err = formFile.Write(sql); err != nil {
-		return fmt.Errorf("failed to write to form file: %w", err)
-	}
-
-	if err = multipartWriter.Close(); err != nil {
-		return fmt.Errorf("failed to close multipart writer: %w", err)
-	}
-
-	if _, err = c.uploadFile(http.MethodPost, "/api/db-manage/databases/"+databaseName+"/import?clean="+strconv.FormatBool(emptyExistingDatabase), byteBuffer.Bytes(), nil, multipartWriter.FormDataContentType()); err != nil {
+	if _, err = c.uploadStream(http.MethodPost, "/api/db-manage/databases/"+databaseName+"/import?clean="+strconv.FormatBool(emptyExistingDatabase), body, length, nil, contentType); err != nil {
 		return err
 	}
 
