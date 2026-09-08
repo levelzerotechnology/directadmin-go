@@ -43,12 +43,17 @@ func (c *UserContext) CreateEmailAccount(emailAccount EmailAccount) error {
 	return nil
 }
 
+// DeleteEmailAccount (user) deletes the named email account on the given domain.
+//
+// The account goes in select0, not user. DirectAdmin's delete takes a multi-select list, and
+// answers "E-Mail Accounts Deleted" whether or not it matched anything, so a user= parameter
+// deletes nothing and reports success.
 func (c *UserContext) DeleteEmailAccount(domain string, name string) error {
 	var response apiGenericResponse
 
 	body := url.Values{}
 	body.Set("domain", domain)
-	body.Set("user", name)
+	body.Set("select0", name)
 
 	if _, err := c.makeRequestOld(http.MethodPost, "API_EMAIL_POP?action=delete", body, &response); err != nil {
 		return err
@@ -61,27 +66,45 @@ func (c *UserContext) DeleteEmailAccount(domain string, name string) error {
 	return nil
 }
 
+// emailAccountsPerPage is how many accounts each listing request asks for. DirectAdmin
+// paginates this endpoint at 50 by default, so a domain with more than that silently listed
+// only its first page.
+const emailAccountsPerPage = 500
+
 // GetEmailAccounts (user) returns an array of email accounts belonging to the provided domain.
 func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 	var emailAccounts []EmailAccount
-	rawEmailAccounts := struct {
-		EmailAccounts map[string]struct {
-			Sent      any    `json:"sent"`
-			Suspended string `json:"suspended"`
-			Usage     struct {
-				DiskQuota string `json:"quota"`
-				DiskUsage string `json:"usage"`
-			} `json:"usage"`
-			Username string `json:"account"`
-		} `json:"emails"`
-	}{}
 
-	if _, err := c.makeRequestOld(http.MethodGet, "EMAIL_POP?bytes=yes&domain="+domain, nil, &rawEmailAccounts); err != nil {
-		return nil, err
-	}
+	// Paged rather than one large request: ipp raises the cap but does not remove it, so a
+	// domain with more accounts than the page size would truncate again without this.
+	for page := 1; ; page++ {
+		rawEmailAccounts := struct {
+			EmailAccounts map[string]struct {
+				Sent      any    `json:"sent"`
+				Suspended string `json:"suspended"`
+				Usage     struct {
+					DiskQuota string `json:"quota"`
+					DiskUsage string `json:"usage"`
+				} `json:"usage"`
+				Username string `json:"account"`
+			} `json:"emails"`
+		}{}
 
-	for id, emailAccount := range rawEmailAccounts.EmailAccounts {
-		if id != "info" {
+		endpoint := fmt.Sprintf("EMAIL_POP?bytes=yes&domain=%s&ipp=%d&page=%d", url.QueryEscape(domain), emailAccountsPerPage, page)
+		if _, err := c.makeRequestOld(http.MethodGet, endpoint, nil, &rawEmailAccounts); err != nil {
+			return nil, err
+		}
+
+		found := 0
+
+		for id, emailAccount := range rawEmailAccounts.EmailAccounts {
+			// Every page carries an "info" entry alongside the accounts.
+			if id == "info" {
+				continue
+			}
+
+			found++
+
 			email := EmailAccount{
 				DiskQuota: cast.ToInt(emailAccount.Usage.DiskQuota),
 				DiskUsage: cast.ToInt(emailAccount.Usage.DiskUsage),
@@ -98,6 +121,10 @@ func (c *UserContext) GetEmailAccounts(domain string) ([]EmailAccount, error) {
 			}
 
 			emailAccounts = append(emailAccounts, email)
+		}
+
+		if found < emailAccountsPerPage {
+			break
 		}
 	}
 
