@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // cronLinePattern splits a crontab line into its five schedule fields and the command, which
@@ -61,6 +64,32 @@ func (c *UserContext) GetCronJobs() ([]CronJob, error) {
 	sort.Slice(jobs, func(i, j int) bool { return jobs[i].ID < jobs[j].ID })
 
 	return jobs, nil
+}
+
+// CreateCronJob (user) adds job to the user's crontab. job.ID is ignored.
+//
+// Sent to the documented CMD_API_CRON_JOBS create action. Callers should read the crontab back
+// afterwards, as an unrecognised request is answered like a list request without an error.
+func (c *UserContext) CreateCronJob(job CronJob) error {
+	for _, field := range []string{job.Minute, job.Hour, job.DayOfMonth, job.Month, job.DayOfWeek, job.Command} {
+		if field == "" || strings.ContainsAny(field, "\r\n") {
+			return errors.New("failed to create cron job: every field must be set and single-line")
+		}
+	}
+
+	body := url.Values{}
+	body.Set("minute", job.Minute)
+	body.Set("hour", job.Hour)
+	body.Set("dayofmonth", job.DayOfMonth)
+	body.Set("month", job.Month)
+	body.Set("dayofweek", job.DayOfWeek)
+	body.Set("command", job.Command)
+
+	if _, err := c.makeRequestOld(http.MethodPost, "API_CRON_JOBS?action=create", body, nil); err != nil {
+		return fmt.Errorf("failed to create cron job: %w", err)
+	}
+
+	return nil
 }
 
 // UpdateCronJob (user) replaces the schedule and command of the job with job.ID.
