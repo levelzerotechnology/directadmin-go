@@ -74,7 +74,7 @@ func (c *UserContext) IssueSSL(domain string, hostnamesToCertify ...string) erro
 // several minutes, so the API needs a suitably long timeout. The raw response body
 // is returned as its shape varies by provider.
 func (c *UserContext) ProvisionCerts(domain string) ([]byte, error) {
-	resp, err := c.makeRequestNew(http.MethodPost, "domain-tls/"+domain+"/provision-certs", nil, nil)
+	resp, err := c.makeRequestNew(http.MethodPost, "domain-tls/domains/"+domain+"/provision-certs", nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to provision certificates for %v: %w", domain, err)
 	}
@@ -84,7 +84,7 @@ func (c *UserContext) ProvisionCerts(domain string) ([]byte, error) {
 
 // SetACMEConfig (user) replaces the ACME config for the given domain.
 func (c *UserContext) SetACMEConfig(domain string, config ACMEConfig) error {
-	if _, err := c.makeRequestNew(http.MethodPut, "domain-tls/"+domain+"/acme-config", config.normalize(), nil); err != nil {
+	if _, err := c.makeRequestNew(http.MethodPut, "domain-tls/domains/"+domain+"/acme-config", config.normalize(), nil); err != nil {
 		return fmt.Errorf("failed to set ACME config for %v: %w", domain, err)
 	}
 
